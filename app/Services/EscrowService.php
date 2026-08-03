@@ -19,10 +19,15 @@ class EscrowService
 
         $reference = sprintf('escrow_%s_%s', strtolower($currency), bin2hex(random_bytes(6)));
 
+        $lockedAt = new DateTimeImmutable();
+
         return [
             'provider_reference' => $reference,
             'status' => 'locked',
-            'locked_at' => new DateTimeImmutable(),
+            // return an ISO-8601 timestamp which is safe to persist/serialize
+            'locked_at' => $lockedAt->format(DATE_ATOM),
+            'amount' => $amount,
+            'currency' => strtoupper($currency),
         ];
     }
 }

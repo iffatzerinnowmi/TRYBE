@@ -22,17 +22,28 @@
 </style>
 
 <div class="incentive-display">
-    <span class="type">
-        {{ $study->incentive_type instanceof \App\Enums\IncentiveType ? $study->incentive_type->label() : $study->incentive_type }}
-    </span>
+    @php
+        $type = \App\Enums\IncentiveType::tryFrom($study->incentive_type ?? '');
+        $typeLabel = $type ? $type->label() : (is_string($study->incentive_type) ? ucwords(str_replace('_', ' ', $study->incentive_type)) : '—');
+    @endphp
 
-    @if(!empty($study->incentive_amount))
+    <span class="type">{{ $typeLabel }}</span>
+
+    @if(!empty($study->incentive_amount) && $type && $type->requiresAmount())
         <div class="amount">{{ $study->currency }} {{ number_format((float) $study->incentive_amount, 2) }}</div>
     @else
         <div class="amount">No monetary payment</div>
     @endif
 
     @if(!empty($study->escrow_locked_at))
-        <div style="margin-top: 8px; font-size: 13px;">Escrow locked before publication</div>
+        <div style="margin-top: 8px; font-size: 13px;">
+            Escrow locked: {{ optional($study->escrow_locked_at)->diffForHumans() ?? $study->escrow_locked_at }}
+        </div>
+    @endif
+
+    @if(!empty($study->course_credit_document_path))
+        <div style="margin-top:8px; font-size:13px;">
+            Document: <a href="{{ asset('storage/' . $study->course_credit_document_path) }}" target="_blank" rel="noopener">{{ $study->course_credit_document_name ?? basename($study->course_credit_document_path) }}</a>
+        </div>
     @endif
 </div>

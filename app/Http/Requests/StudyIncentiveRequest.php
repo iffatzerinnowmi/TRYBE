@@ -18,9 +18,17 @@ class StudyIncentiveRequest extends FormRequest
         return [
             'incentive_type' => ['required', Rule::in(IncentiveType::values())],
             'incentive_amount' => ['nullable', 'numeric', 'min:0.01'],
-            'currency' => ['nullable', 'string', 'size:3'],
+            'currency' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'course_credit_document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $currency = $this->input('currency');
+        if (is_string($currency) && $currency !== '') {
+            $this->merge(['currency' => strtoupper(trim($currency))]);
+        }
     }
 
     public function withValidator($validator): void
@@ -38,6 +46,11 @@ class StudyIncentiveRequest extends FormRequest
 
             if (!$type->requiresAmount() && $this->filled('incentive_amount')) {
                 $validator->errors()->add('incentive_amount', 'Amount is only allowed for cash and voucher studies.');
+            }
+
+            // currency must be present when amount is provided
+            if ($type->requiresAmount() && !$this->filled('currency')) {
+                $validator->errors()->add('currency', 'Currency (3-letter ISO code) is required when an amount is provided.');
             }
 
             if ($type->requiresDocumentation() && !$this->hasFile('course_credit_document')) {
