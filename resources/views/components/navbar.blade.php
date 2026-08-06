@@ -17,12 +17,15 @@
     $links = match ($role) {
         'participant' => [
             'Home'        => '/dashboard',
+            'Profile'     => '/participant/profile',
             'Reliability' => '/participant/reliability',
             'Credentials' => '/participant/credentials',
             'Alerts'      => '/notifications',
         ],
         'researcher' => [
             'Dashboard'    => '/dashboard',
+            'Profile'      => '/researcher/profile',
+            'Verification' => '/verification',
             'Endorsements' => '/researcher/endorsements',
             'Alerts'       => '/notifications',
         ],
@@ -31,8 +34,9 @@
             'Alerts'   => '/notifications',
         ],
         'organization' => [
-            'Dashboard' => '/dashboard',
-            'Alerts'    => '/notifications',
+            'Dashboard'    => '/dashboard',
+            'Verification' => '/verification',
+            'Alerts'       => '/notifications',
         ],
         default => [
             'How it works' => '/#how',
@@ -84,6 +88,82 @@
                         {{ auth()->user()->role->label() }}
                     </span>
 
+                    {{-- ================= NOTIFICATION BELL =================
+                         $navUnreadCount and $navUnread are supplied by
+                         App\View\Composers\NotificationComposer, which attaches
+                         them to this component on every page it renders.
+                    ================================================================ --}}
+                    <div class="relative" id="bell-wrap">
+                        <button type="button" id="bell-btn" aria-label="Notifications"
+                                class="relative grid h-10 w-10 place-items-center rounded-xl border
+                                       border-line-hi bg-surface text-[17px] transition
+                                       hover:-translate-y-px hover:border-plum">
+                            🔔
+                            @if ($navUnreadCount > 0)
+                                <span id="bell-count"
+                                      class="absolute -right-1.5 -top-1.5 grid h-5 min-w-[20px] place-items-center
+                                             rounded-full border-2 border-mint bg-danger px-1
+                                             font-mono text-[11px] text-white">
+                                    {{ $navUnreadCount > 9 ? '9+' : $navUnreadCount }}
+                                </span>
+                            @endif
+                        </button>
+
+                        <div id="bell-dropdown"
+                             class="invisible absolute right-0 top-[52px] z-[70] w-[380px] max-w-[calc(100vw-40px)]
+                                    -translate-y-2 overflow-hidden rounded-[18px] border border-line
+                                    bg-surface opacity-0 shadow-[0_24px_54px_-22px_rgba(79,58,101,.45)]
+                                    transition-all duration-150">
+
+                            <div class="flex items-center justify-between border-b border-line px-[18px] py-[15px]">
+                                <b class="font-display text-base text-ink">Notifications</b>
+
+                                @if ($navUnreadCount > 0)
+                                    <form method="POST" action="/notifications/read">
+                                        @csrf
+                                        <button type="submit"
+                                                class="text-xs font-semibold text-plum hover:underline">
+                                            Mark all read
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+
+                            <div class="max-h-[340px] overflow-y-auto">
+                                @forelse ($navUnread as $item)
+                                    <a href="{{ $item->url ?? '/notifications' }}"
+                                       class="flex gap-3 border-b border-line bg-plum/5 px-[18px] py-3.5
+                                              transition hover:bg-surface-soft">
+                                        <span class="text-[17px]">{{ $item->icon }}</span>
+
+                                        <span class="min-w-0 flex-1">
+                                            <span class="block text-[13px] font-semibold text-ink">{{ $item->title }}</span>
+                                            <span class="mt-0.5 block text-[12px] leading-relaxed text-dim">
+                                                {{ Str::limit($item->body, 90) }}
+                                            </span>
+                                            <span class="mt-1 block font-mono text-[10px] text-steel">
+                                                {{ $item->created_at->diffForHumans() }}
+                                            </span>
+                                        </span>
+
+                                        <span class="mt-1.5 h-[7px] w-[7px] shrink-0 rounded-full bg-plum"></span>
+                                    </a>
+                                @empty
+                                    <p class="px-[18px] py-[34px] text-center text-[13px] text-dim">
+                                        You're all caught up. 🎉
+                                    </p>
+                                @endforelse
+                            </div>
+
+                            <div class="border-t border-line bg-surface-soft px-[18px] py-3 text-center">
+                                <a href="/notifications"
+                                   class="text-[12.5px] font-semibold text-plum hover:underline">
+                                    View all notifications →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     <x-avatar :name="auth()->user()->name" />
 
                     <form method="POST" action="/logout">
@@ -128,3 +208,38 @@
         </div>
     </div>
 </nav>
+
+@auth
+<script>
+/* Opens and closes the bell dropdown, and closes it when you click away. */
+(function () {
+    var btn = document.getElementById('bell-btn');
+    var menu = document.getElementById('bell-dropdown');
+    var wrap = document.getElementById('bell-wrap');
+
+    if (!btn || !menu) return;
+
+    var open = false;
+
+    function setOpen(next) {
+        open = next;
+        menu.classList.toggle('invisible', !open);
+        menu.classList.toggle('opacity-0', !open);
+        menu.classList.toggle('-translate-y-2', !open);
+    }
+
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setOpen(!open);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!wrap.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') setOpen(false);
+    });
+})();
+</script>
+@endauth

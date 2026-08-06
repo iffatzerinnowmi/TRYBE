@@ -64,7 +64,7 @@
                         {{-- Attached documents --}}
                         <div class="mt-3 flex flex-wrap gap-2">
                             @if ($request->credential_document_path)
-                                <a href="{{ asset('storage/' . $request->credential_document_path) }}" target="_blank"
+                                <a href="{{ route('admin.verifications.document', [$request, 'credential']) }}" target="_blank"
                                    class="rounded-lg border border-line-hi px-3 py-1.5 text-[11.5px] text-ink
                                           transition hover:border-plum hover:text-plum">
                                     🪪 Credential document
@@ -72,7 +72,7 @@
                             @endif
 
                             @if ($request->registration_documents_path)
-                                <a href="{{ asset('storage/' . $request->registration_documents_path) }}" target="_blank"
+                                <a href="{{ route('admin.verifications.document', [$request, 'registration']) }}" target="_blank"
                                    class="rounded-lg border border-line-hi px-3 py-1.5 text-[11.5px] text-ink
                                           transition hover:border-plum hover:text-plum">
                                     📑 Registration documents

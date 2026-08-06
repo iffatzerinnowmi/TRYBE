@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Facades\Storage;
 use App\Enums\PipelineStage;
 use App\Enums\UserRole;
 use App\Enums\VerificationStatus;
@@ -83,7 +83,16 @@ class AdminDashboardController extends Controller
 
         return back()->with('status', $verificationRequest->user->name . ' is now verified.');
     }
+    public function document(VerificationRequest $verificationRequest, string $type)
+    {
+        $path = $type === 'registration'
+            ? $verificationRequest->registration_documents_path
+            : $verificationRequest->credential_document_path;
 
+        abort_unless($path && Storage::disk('public')->exists($path), 404, 'That document is not on file.');
+
+        return Storage::disk('public')->response($path);
+    }
     /** Reject a pending request, with an optional reason. */
     public function reject(Request $request, VerificationRequest $verificationRequest)
     {

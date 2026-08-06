@@ -12,15 +12,16 @@ use App\Http\Controllers\ReliabilityController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\EndorsementController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ParticipantProfileController;
+use App\Http\Controllers\ResearcherProfileController;
+use App\Http\Controllers\VerificationController;
 
 Route::get('/', [PageController::class, 'landing'])->name('landing');
 
 
 
 /* =============================================================================
-   PASTE THESE LINES INTO routes/web.php
-   Put the "use" line at the very top with the other use statements,
-   and the Route::get line at the bottom of the file.
+   
    ============================================================================= */
 
 
@@ -68,6 +69,8 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/verifications/{verificationRequest}/reject',
             [AdminDashboardController::class, 'reject'])->name('verifications.reject');
+        Route::get('/verifications/{verificationRequest}/document/{type}',
+            [AdminDashboardController::class, 'document'])->name('verifications.document');
     });
 });
 
@@ -118,4 +121,27 @@ Route::prefix('notifications')->name('notifications.')->group(function () {
     Route::post('/unsubscribe', [NotificationController::class, 'unsubscribe'])->name('unsubscribe');
     Route::post('/test', [NotificationController::class, 'test'])->name('test');
     Route::post('/read', [NotificationController::class, 'markAllRead'])->name('read');
+    Route::post('/read/{notification}', [NotificationController::class, 'markRead'])->name('readOne');
+});
+
+/* ---- Participant profile builder ---- */
+Route::middleware('role:participant')->prefix('participant')->name('participant.')->group(function () {
+    Route::get('/profile', [ParticipantProfileController::class, 'edit'])->name('profile');
+    Route::patch('/profile', [ParticipantProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/account', [ParticipantProfileController::class, 'updateAccount'])->name('profile.account');
+    Route::patch('/profile/password', [ParticipantProfileController::class, 'updatePassword'])->name('profile.password');
+});
+
+/* ---- Researcher profile builder ---- */
+Route::middleware('role:researcher')->prefix('researcher')->name('researcher.')->group(function () {
+    Route::get('/profile', [ResearcherProfileController::class, 'edit'])->name('profile');
+    Route::patch('/profile', [ResearcherProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/account', [ResearcherProfileController::class, 'updateAccount'])->name('profile.account');
+    Route::patch('/profile/password', [ResearcherProfileController::class, 'updatePassword'])->name('profile.password');
+});
+
+/* ---- Verification: researchers AND organizations ---- */
+Route::middleware('role:researcher,organization')->group(function () {
+    Route::get('/verification', [VerificationController::class, 'index'])->name('verification.index');
+    Route::post('/verification', [VerificationController::class, 'store'])->name('verification.store');
 });
