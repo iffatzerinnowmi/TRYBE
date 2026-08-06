@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrganizationDashboardController;
 use App\Http\Controllers\ParticipantDashboardController;
 use App\Http\Controllers\ResearcherDashboardController;
+use App\Http\Controllers\StudyController;
 
 use App\Http\Controllers\PageController;
 
@@ -66,6 +67,27 @@ Route::middleware('auth')->group(function () {
         Route::post('/verifications/{verificationRequest}/reject',
             [AdminDashboardController::class, 'reject'])->name('verifications.reject');
     });
+
+    /* ---- Study listing board ----
+       /studies adapts to the logged-in role: participants get a filterable
+       browse feed, researchers/organizations get their own listing manager.
+       NOTE: /studies/create must stay ABOVE /studies/{study}, or Laravel
+       tries to route-model-bind the word "create" as a study id. */
+    Route::get('/studies', [StudyController::class, 'index'])->name('studies.index');
+
+    Route::middleware('role:researcher,organization')->group(function () {
+        Route::get('/studies/create', [StudyController::class, 'create'])->name('studies.create');
+        Route::post('/studies', [StudyController::class, 'store'])->name('studies.store');
+        Route::get('/studies/{study}/edit', [StudyController::class, 'edit'])->name('studies.edit');
+        Route::put('/studies/{study}', [StudyController::class, 'update'])->name('studies.update');
+        Route::delete('/studies/{study}', [StudyController::class, 'destroy'])->name('studies.destroy');
+    });
+
+    Route::post('/studies/{study}/apply', [StudyController::class, 'apply'])
+        ->middleware('role:participant')
+        ->name('studies.apply');
+
+    Route::get('/studies/{study}', [StudyController::class, 'show'])->name('studies.show');
 });
 
 

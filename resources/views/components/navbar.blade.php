@@ -29,8 +29,9 @@
             'Overview' => '/dashboard',
         ],
         'organization' => [
-            'Dashboard' => '/dashboard',
-            'Profile'   => '/profile',
+            'Dashboard'  => '/dashboard',
+            'My studies' => '/studies',
+            'Profile'    => '/profile',
         ],
         default => [
             'How it works' => '/#how',
