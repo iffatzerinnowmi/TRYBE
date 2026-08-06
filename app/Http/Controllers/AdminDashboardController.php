@@ -9,6 +9,7 @@ use App\Models\Study;
 use App\Models\StudyParticipation;
 use App\Models\User;
 use App\Models\VerificationRequest;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\DB;
  */
 class AdminDashboardController extends Controller
 {
+    public function __construct(private NotificationService $notifications) {}
+
     public function index()
     {
         /* ---- the approvals queue ---- */
@@ -116,6 +119,26 @@ class AdminDashboardController extends Controller
 
             // This is the line that puts the badge on the researcher's profile.
             $req->user->update(['verification_status' => $status]);
+
+            // SECTION 7: tell them about it. The notification is stored either
+            // way, and pushed to their browser if they enabled push.
+            if ($status === VerificationStatus::VERIFIED) {
+                $this->notifications->send(
+                    $req->user,
+                    'verify',
+                    "You're verified!",
+                    'Your ' . $req->role->label() . ' badge is now live on your profile.',
+                    url('/dashboard')
+                );
+            } else {
+                $this->notifications->send(
+                    $req->user,
+                    'verify',
+                    'Your verification needs attention',
+                    $reason ?: 'An admin could not approve your documents. You can submit new ones.',
+                    url('/dashboard')
+                );
+            }
         });
     }
 }

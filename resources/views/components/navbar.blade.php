@@ -16,21 +16,23 @@
 
     $links = match ($role) {
         'participant' => [
-            'Home'    => '/dashboard',
-            'Studies' => '/studies',
-            'Profile' => '/profile',
+            'Home'        => '/dashboard',
+            'Reliability' => '/participant/reliability',
+            'Credentials' => '/participant/credentials',
+            'Alerts'      => '/notifications',
         ],
         'researcher' => [
-            'Dashboard'  => '/dashboard',
-            'My studies' => '/studies',
-            'Profile'    => '/profile',
+            'Dashboard'    => '/dashboard',
+            'Endorsements' => '/researcher/endorsements',
+            'Alerts'       => '/notifications',
         ],
         'admin' => [
             'Overview' => '/dashboard',
+            'Alerts'   => '/notifications',
         ],
         'organization' => [
             'Dashboard' => '/dashboard',
-            'Profile'   => '/profile',
+            'Alerts'    => '/notifications',
         ],
         default => [
             'How it works' => '/#how',

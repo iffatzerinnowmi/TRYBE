@@ -7,8 +7,11 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrganizationDashboardController;
 use App\Http\Controllers\ParticipantDashboardController;
 use App\Http\Controllers\ResearcherDashboardController;
-
+use App\Http\Controllers\CredentialController;
+use App\Http\Controllers\ReliabilityController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\EndorsementController;
+use App\Http\Controllers\NotificationController;
 
 Route::get('/', [PageController::class, 'landing'])->name('landing');
 
@@ -68,6 +71,21 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+Route::middleware('role:participant')->prefix('participant')->name('participant.')->group(function () {
+
+    // FEATURE 1 — Credentialing
+    Route::get('/credentials', [CredentialController::class, 'index'])
+        ->name('credentials');
+    Route::post('/credentials/recalculate', [CredentialController::class, 'recalculate'])
+        ->name('credentials.recalculate');
+
+    // FEATURE 2 — Reliability score
+    Route::get('/reliability', [ReliabilityController::class, 'index'])
+        ->name('reliability');
+    Route::post('/reliability/recalculate', [ReliabilityController::class, 'recalculate'])
+        ->name('reliability.recalculate');
+});
+
 
 /* =============================================================================
    bootstrap/app.php
@@ -84,3 +102,20 @@ Route::middleware('auth')->group(function () {
         ]);
     })
 */
+/* ---- FEATURE 3: endorsements (researchers only) ---- */
+Route::middleware('role:researcher')->prefix('researcher')->name('researcher.')->group(function () {
+    Route::get('/endorsements', [EndorsementController::class, 'index'])
+        ->name('endorsements');
+    Route::post('/endorsements', [EndorsementController::class, 'store'])
+        ->name('endorsements.store');
+});
+
+/* ---- FEATURE 4: notification centre (every logged-in role) ---- */
+Route::prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [NotificationController::class, 'index'])->name('index');
+    Route::post('/preferences', [NotificationController::class, 'updatePreferences'])->name('preferences');
+    Route::post('/subscribe', [NotificationController::class, 'subscribe'])->name('subscribe');
+    Route::post('/unsubscribe', [NotificationController::class, 'unsubscribe'])->name('unsubscribe');
+    Route::post('/test', [NotificationController::class, 'test'])->name('test');
+    Route::post('/read', [NotificationController::class, 'markAllRead'])->name('read');
+});
