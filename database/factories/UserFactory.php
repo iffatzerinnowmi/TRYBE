@@ -30,6 +30,14 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'phone' => fake()->optional()->numerify('01#########'),
+            'role' => 'participant',
+            'location' => fake()->optional()->city() . ', ' . fake()->country(),
+            'verification_status' => 'unverified',
+            'avatar_path' => null,
+            'organization_name' => null,
+            'organization_type' => null,
+            'registration_documents_path' => null,
         ];
     }
 
@@ -38,7 +46,7 @@ class UserFactory extends Factory
      */
     public function unverified(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'email_verified_at' => null,
         ]);
     }

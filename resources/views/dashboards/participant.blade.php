@@ -76,7 +76,8 @@
                 <x-slot:action><a href="/studies">See all →</a></x-slot:action>
 
                 @forelse ($recommended as $study)
-                    <div class="flex items-center gap-4 border-b border-line py-4 last:border-none last:pb-1">
+                    <div class="flex items-center gap-4 border-b border-line py-4 last:border-none last:pb-1
+                                {{ $study->strong_match ? 'rounded-xl border border-plum/25 bg-plum/5 px-3.5' : '' }}">
                         <div class="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl
                                     border border-line bg-surface-soft text-lg">
                             {{ $study->incentive_type->requiresEscrow() ? '💵' : '🤝' }}
@@ -91,8 +92,19 @@
                                         · ৳{{ number_format($study->compensation_amount, 0) }}
                                     @endif
                                 </x-badge>
+                                <x-badge tone="{{ $study->strong_match ? 'expert' : 'gold' }}">
+                                    Match {{ $study->match_score }}%
+                                </x-badge>
+                                @if ($study->strong_match)
+                                    <x-badge tone="plum">Strong match</x-badge>
+                                @endif
                                 <span>{{ ucfirst(str_replace('_', ' ', $study->method)) }} · {{ $study->duration_minutes }} min</span>
                             </div>
+                            @if (! empty($study->match_reasons))
+                                <p class="mt-2 text-[11.5px] text-dim">
+                                    {{ implode(' · ', $study->match_reasons) }}
+                                </p>
+                            @endif
                         </div>
 
                         <x-btn href="/studies/{{ $study->id }}" variant="soft" size="sm">View</x-btn>

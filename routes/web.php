@@ -6,7 +6,9 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrganizationDashboardController;
 use App\Http\Controllers\ParticipantDashboardController;
+use App\Http\Controllers\ParticipantStudyInvitationController;
 use App\Http\Controllers\ResearcherDashboardController;
+use App\Http\Controllers\StudyInvitationController;
 use App\Http\Controllers\CredentialController;
 use App\Http\Controllers\ReliabilityController;
 use App\Http\Controllers\PageController;
@@ -64,13 +66,19 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-        Route::post('/verifications/{verificationRequest}/approve',
-            [AdminDashboardController::class, 'approve'])->name('verifications.approve');
+        Route::post(
+            '/verifications/{verificationRequest}/approve',
+            [AdminDashboardController::class, 'approve']
+        )->name('verifications.approve');
 
-        Route::post('/verifications/{verificationRequest}/reject',
-            [AdminDashboardController::class, 'reject'])->name('verifications.reject');
-        Route::get('/verifications/{verificationRequest}/document/{type}',
-            [AdminDashboardController::class, 'document'])->name('verifications.document');
+        Route::post(
+            '/verifications/{verificationRequest}/reject',
+            [AdminDashboardController::class, 'reject']
+        )->name('verifications.reject');
+        Route::get(
+            '/verifications/{verificationRequest}/document/{type}',
+            [AdminDashboardController::class, 'document']
+        )->name('verifications.document');
     });
 });
 
@@ -87,6 +95,13 @@ Route::middleware('role:participant')->prefix('participant')->name('participant.
         ->name('reliability');
     Route::post('/reliability/recalculate', [ReliabilityController::class, 'recalculate'])
         ->name('reliability.recalculate');
+
+    Route::get('/studies/{study}/invitation', [ParticipantStudyInvitationController::class, 'show'])
+        ->name('studies.invitation');
+    Route::post('/studies/{study}/invitation/accept', [ParticipantStudyInvitationController::class, 'accept'])
+        ->name('studies.invitation.accept');
+    Route::post('/studies/{study}/invitation/decline', [ParticipantStudyInvitationController::class, 'decline'])
+        ->name('studies.invitation.decline');
 });
 
 
@@ -111,6 +126,8 @@ Route::middleware('role:researcher')->prefix('researcher')->name('researcher.')-
         ->name('endorsements');
     Route::post('/endorsements', [EndorsementController::class, 'store'])
         ->name('endorsements.store');
+    Route::post('/studies/{study}/invite/{participant}', [StudyInvitationController::class, 'store'])
+        ->name('studies.invite');
 });
 
 /* ---- FEATURE 4: notification centre (every logged-in role) ---- */

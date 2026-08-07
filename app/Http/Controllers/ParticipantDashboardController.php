@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\CredentialLevel;
 use App\Enums\PipelineStage;
-use App\Enums\StudyStatus;
-use App\Models\Study;
 use App\Models\StudyParticipation;
+use App\Services\StudyMatchingService;
 
 /**
  * The participant's home screen.
@@ -16,7 +15,7 @@ use App\Models\StudyParticipation;
  */
 class ParticipantDashboardController extends Controller
 {
-    public function index()
+    public function index(StudyMatchingService $matching)
     {
         $user = auth()->user();
         $profile = $user->participantProfile;
@@ -41,13 +40,7 @@ class ParticipantDashboardController extends Controller
         $appliedStudyIds = StudyParticipation::where('participant_id', $user->id)
             ->pluck('study_id');
 
-        $recommended = Study::query()
-            ->with('researcher')
-            ->where('status', StudyStatus::OPEN)
-            ->whereNotIn('id', $appliedStudyIds)
-            ->latest('id')
-            ->take(4)
-            ->get();
+        $recommended = $matching->recommendStudiesForParticipant($user, 4);
 
         /* ---- their own applications, newest first ---- */
         $applications = StudyParticipation::query()
@@ -60,34 +53,47 @@ class ParticipantDashboardController extends Controller
         /* ---- badge wall, worked out from the profile row ---- */
         $badges = [
             [
-                'icon' => '🥉', 'name' => 'Bronze',
+                'icon' => '🥉',
+                'name' => 'Bronze',
                 'earned' => $profile->completed_studies_count >= CredentialLevel::BRONZE->minCompletions(),
             ],
             [
-                'icon' => '🥈', 'name' => 'Gold',
+                'icon' => '🥈',
+                'name' => 'Gold',
                 'earned' => $profile->completed_studies_count >= CredentialLevel::GOLD->minCompletions(),
             ],
             [
-                'icon' => '🏆', 'name' => 'Expert',
+                'icon' => '🏆',
+                'name' => 'Expert',
                 'earned' => $profile->completed_studies_count >= CredentialLevel::EXPERT->minCompletions(),
             ],
             [
-                'icon' => '🔥', 'name' => 'Reliable',
+                'icon' => '🔥',
+                'name' => 'Reliable',
                 'earned' => $profile->current_streak_weeks >= (int) config('platform.streak_badge_weeks'),
             ],
             [
-                'icon' => '🎯', 'name' => 'Streak ' . config('platform.streak_karma_bonus_weeks') . 'wk',
+                'icon' => '🎯',
+                'name' => 'Streak ' . config('platform.streak_karma_bonus_weeks') . 'wk',
                 'earned' => $profile->current_streak_weeks >= (int) config('platform.streak_karma_bonus_weeks'),
             ],
             [
-                'icon' => '🏅', 'name' => 'Verified',
+                'icon' => '🏅',
+                'name' => 'Verified',
                 'earned' => $profile->is_verified_participant,
             ],
         ];
 
         return view('dashboards.participant', compact(
-            'user', 'profile', 'unlockTarget', 'completedCount', 'unlockRemaining',
-            'next', 'recommended', 'applications', 'badges'
+            'user',
+            'profile',
+            'unlockTarget',
+            'completedCount',
+            'unlockRemaining',
+            'next',
+            'recommended',
+            'applications',
+            'badges'
         ));
     }
 

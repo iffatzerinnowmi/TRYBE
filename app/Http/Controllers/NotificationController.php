@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\PushSubscription;
+use App\Models\Study;
 use App\Models\UserNotification;
 use App\Services\NotificationService;
 use App\Services\WebPushService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * FEATURE — Notification centre + Web Push (external API).
@@ -40,12 +42,35 @@ class NotificationController extends Controller
             : 'all';
 
         $items = (clone $base)
-            ->when($filter === 'unread', fn ($q) => $q->unread())
-            ->when(! in_array($filter, ['all', 'unread'], true),
-                   fn ($q) => $q->where('type', $filter))
+            ->when($filter === 'unread', fn($q) => $q->unread())
+            ->when(
+                ! in_array($filter, ['all', 'unread'], true),
+                fn($q) => $q->where('type', $filter)
+            )
             ->latest('id')
             ->take(30)
             ->get();
+
+        $items = $items->map(function (UserNotification $item) use ($user) {
+            $effectiveUrl = $item->url;
+
+            if (
+                $item->type === 'studies'
+                && Str::startsWith($item->title, 'Invitation: ')
+                && $user->role?->value === 'participant'
+            ) {
+                $studyTitle = Str::after($item->title, 'Invitation: ');
+                $study = Study::query()->where('title', $studyTitle)->first();
+
+                if ($study) {
+                    $effectiveUrl = route('participant.studies.invitation', $study);
+                }
+            }
+
+            $item->setAttribute('effective_url', $effectiveUrl);
+
+            return $item;
+        });
 
         // The chips, built from the same TYPES list the preferences use.
         $filters = [
@@ -156,8 +181,10 @@ class NotificationController extends Controller
         );
 
         if (! $notification) {
-            return back()->with('status',
-                'That type is switched off, so nothing was sent. Turn on "New studies" and try again.');
+            return back()->with(
+                'status',
+                'That type is switched off, so nothing was sent. Turn on "New studies" and try again.'
+            );
         }
 
         return back()->with('status', 'Test sent — ' . $notification->push_result . '.');

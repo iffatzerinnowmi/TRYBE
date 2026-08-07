@@ -110,6 +110,16 @@
 
                         <p class="mt-1 text-[13px] leading-relaxed text-dim">{{ $item->body }}</p>
 
+                        @if ($item->effective_url)
+                            <div class="mt-2">
+                                <a href="{{ $item->effective_url }}"
+                                   class="inline-flex items-center rounded-full border border-plum/25 bg-plum/8 px-3 py-1.5
+                                          font-mono text-[10.5px] text-plum transition hover:bg-plum/12">
+                                    Open invitation
+                                </a>
+                            </div>
+                        @endif
+
                         <div class="mt-2 flex flex-wrap items-center gap-2.5">
                             <span class="font-mono text-[10.5px] text-steel">
                                 {{ $item->created_at->diffForHumans() }}

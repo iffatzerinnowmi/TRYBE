@@ -7,6 +7,7 @@ use App\Enums\StudyStatus;
 use App\Models\Follow;
 use App\Models\Study;
 use App\Models\StudyParticipation;
+use App\Services\StudyMatchingService;
 
 /**
  * The researcher's home screen: their listings, their pipeline, and whether
@@ -14,7 +15,7 @@ use App\Models\StudyParticipation;
  */
 class ResearcherDashboardController extends Controller
 {
-    public function index()
+    public function index(StudyMatchingService $matching)
     {
         $user = auth()->user();
         $profile = $user->researcherProfile;
@@ -51,6 +52,20 @@ class ResearcherDashboardController extends Controller
             ->take(5)
             ->get();
 
+        $studyMatches = $studies->mapWithKeys(function (Study $study) use ($matching) {
+            $matches = $matching->rankParticipantsForStudy($study, 3)->map(function ($match) use ($study, $matching) {
+                $match->setAttribute('invited', $matching->hasInvitation($match->user, $study));
+
+                return $match;
+            });
+
+            return [$study->id => $matches];
+        });
+
+        $studyCriteria = $studies->mapWithKeys(function (Study $study) use ($matching) {
+            return [$study->id => $matching->criteriaSummary($matching->criteriaForStudy($study))];
+        });
+
         /* ---- the colour and label for each pipeline stage ---- */
         $stageStyles = [
             PipelineStage::APPLIED->value   => ['label' => 'Applied',   'class' => 'bg-steel'],
@@ -64,7 +79,15 @@ class ResearcherDashboardController extends Controller
         ];
 
         return view('dashboards.researcher', compact(
-            'user', 'profile', 'studies', 'stageCounts', 'stats', 'activity', 'stageStyles'
+            'user',
+            'profile',
+            'studies',
+            'stageCounts',
+            'stats',
+            'activity',
+            'stageStyles',
+            'studyMatches',
+            'studyCriteria'
         ));
     }
 }
