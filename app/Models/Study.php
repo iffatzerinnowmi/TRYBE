@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 class Study extends Model {
     protected $fillable = [
-        'researcher_id','title','description','category','method','duration_minutes',
+        'researcher_id','title','description','category','eligibility_criteria','method','duration_minutes',
         'incentive_type','compensation_amount','slots','deadline','status','participants_count',
         'irb_document_path','irb_flagged','irb_board','irb_ref','irb_valid_until',
         // Incentive Variety Settings
@@ -24,4 +24,18 @@ class Study extends Model {
     ];
     public function researcher(): BelongsTo { return $this->belongsTo(User::class, 'researcher_id'); }
     public function participations(): HasMany { return $this->hasMany(StudyParticipation::class); }
+
+    /** Whether the given user posted this listing. */
+    public function isOwnedBy(?User $user): bool
+    {
+        return $user && $this->researcher_id === $user->id;
+    }
+
+    /** How many of the study's slots are still open, floored at 0. */
+    public function spotsRemaining(): int
+    {
+        $taken = $this->participations_count ?? $this->participations()->count();
+
+        return max(0, $this->slots - $taken);
+    }
 }

@@ -34,9 +34,11 @@
             'Alerts'   => '/notifications',
         ],
         'organization' => [
-            'Dashboard'    => '/dashboard',
+            'Dashboard'     => '/dashboard',
+            'My studies' => '/studies',
             'Verification' => '/verification',
-            'Alerts'       => '/notifications',
+            'Alerts'        => '/notifications',
+            'Profile'      => '/profile',
         ],
         default => [
             'How it works' => '/#how',

@@ -45,11 +45,23 @@
                     </div>
 
                     <div>
-                        <label for="description" class="mb-2 block text-[13px] font-semibold text-ink">Description</label>
+                        <label for="description" class="mb-2 block text-[13px] font-semibold text-ink">
+                            Description <span class="text-danger">*</span>
+                        </label>
                         <textarea id="description" name="description" rows="4"
                                   placeholder="What will participants actually do?"
                                   class="{{ $input }} {{ $errors->has('description') ? 'border-danger' : 'border-line-hi' }}">{{ old('description') }}</textarea>
                         @error('description') <p class="mt-1.5 text-[12px] text-danger">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label for="eligibility_criteria" class="mb-2 block text-[13px] font-semibold text-ink">
+                            Eligibility criteria
+                        </label>
+                        <textarea id="eligibility_criteria" name="eligibility_criteria" rows="3"
+                                  placeholder="Who can take part? Leave blank if open to everyone."
+                                  class="{{ $input }} {{ $errors->has('eligibility_criteria') ? 'border-danger' : 'border-line-hi' }}">{{ old('eligibility_criteria') }}</textarea>
+                        @error('eligibility_criteria') <p class="mt-1.5 text-[12px] text-danger">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="grid gap-5 sm:grid-cols-2">
@@ -77,7 +89,7 @@
                     <div class="grid gap-5 sm:grid-cols-3">
                         <div>
                             <label for="duration_minutes" class="mb-2 block text-[13px] font-semibold text-ink">
-                                Duration (min) <span class="text-danger">*</span>
+                                Duration (min)
                             </label>
                             <input type="number" min="1" id="duration_minutes" name="duration_minutes"
                                    value="{{ old('duration_minutes') }}"
@@ -112,17 +124,16 @@
                      class="reveal reveal-d1">
 
                 <div class="grid gap-3 sm:grid-cols-2">
-                    @foreach ($incentiveTypes as $type)
-                        <label for="incentive_{{ $type->value }}"
+                    @foreach ($incentiveTypes as $value => $label)
+                        <label for="incentive_{{ $value }}"
                                class="incentive-card cursor-pointer rounded-xl border border-line-hi bg-surface-soft p-4 transition hover:border-plum"
-                               data-value="{{ $type->value }}">
-                            <input type="radio" id="incentive_{{ $type->value }}" name="incentive_type"
-                                   value="{{ $type->value }}" class="hidden incentive-radio"
-                                   @checked(old('incentive_type', 'volunteer') === $type->value)>
+                               data-value="{{ $value }}">
+                            <input type="radio" id="incentive_{{ $value }}" name="incentive_type"
+                                   value="{{ $value }}" class="hidden incentive-radio"
+                                   @checked(old('incentive_type', 'volunteer') === $value)>
                             <div class="flex items-center gap-2 text-[14px] font-semibold text-ink">
-                                <span>{{ $icons[$type->value] }}</span> {{ $type->label() }}
+                                <span>{{ $icons[$value] ?? '🔹' }}</span> {{ $label }}
                             </div>
-                            <p class="mt-1.5 text-[12px] leading-relaxed text-dim">{{ $type->description() }}</p>
                         </label>
                     @endforeach
                 </div>
@@ -177,7 +188,10 @@
                 </div>
             </x-panel>
 
-            <x-btn type="submit" class="w-full justify-center">Post study</x-btn>
+            <div class="flex items-center gap-3">
+                <x-btn type="submit" class="flex-1 justify-center">Post study</x-btn>
+                <x-btn href="{{ route('studies.index') }}" variant="ghost">Cancel</x-btn>
+            </div>
         </div>
     </form>
 </div>
