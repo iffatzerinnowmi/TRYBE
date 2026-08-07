@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 
 class StudyMatchingService
 {
-    public function __construct(private int $strongThreshold = 70) {}
+    public function __construct(private int $strongThreshold = 20) {}
 
     public function strongThreshold(): int
     {
