@@ -17,6 +17,10 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ParticipantProfileController;
 use App\Http\Controllers\ResearcherProfileController;
 use App\Http\Controllers\VerificationController;
+use App\Http\Controllers\StudyController;
+
+Route::get('/studies/create', [StudyController::class, 'create']);
+Route::post('/studies', [StudyController::class, 'store'])->name('studies.store');
 
 Route::get('/', [PageController::class, 'landing'])->name('landing');
 
@@ -37,6 +41,11 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/signup',  [AuthController::class, 'showSignup'])->name('signup');
     Route::post('/signup', [AuthController::class, 'signup']);
+});
+/* ---- FEATURE: Incentive Variety Settings (study creation) ---- */
+Route::middleware('role:researcher,organization')->group(function () {
+    Route::get('/studies/create', [StudyController::class, 'create'])->name('studies.create');
+    Route::post('/studies', [StudyController::class, 'store'])->name('studies.store');
 });
 
 /* ---- Logged in only ---- */
