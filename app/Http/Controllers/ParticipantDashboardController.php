@@ -36,10 +36,6 @@ class ParticipantDashboardController extends Controller
         $current = $profile->credential_level;
         $next = $this->nextTier($current);
 
-        /* ---- studies this participant has NOT applied to yet ---- */
-        $appliedStudyIds = StudyParticipation::where('participant_id', $user->id)
-            ->pluck('study_id');
-
         $recommended = $matching->recommendStudiesForParticipant($user, 4);
 
         /* ---- their own applications, newest first ---- */

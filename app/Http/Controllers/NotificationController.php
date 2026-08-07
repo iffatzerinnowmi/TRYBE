@@ -63,7 +63,7 @@ class NotificationController extends Controller
                 $study = Study::query()->where('title', $studyTitle)->first();
 
                 if ($study) {
-                    $effectiveUrl = route('participant.studies.invitation', $study);
+                    $effectiveUrl = route('studies.show', $study);
                 }
             }
 

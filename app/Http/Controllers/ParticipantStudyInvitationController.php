@@ -12,25 +12,7 @@ class ParticipantStudyInvitationController extends Controller
 {
     public function show(Study $study, StudyMatchingService $matching)
     {
-        $user = auth()->user();
-
-        $invite = UserNotification::query()
-            ->where('user_id', $user->id)
-            ->where('type', 'studies')
-            ->where('title', $matching->invitationTitle($study))
-            ->firstOrFail();
-
-        $criteria = $matching->criteriaForStudy($study);
-        $match = $matching->assessUserForStudy($user, $criteria);
-
-        return view('participant.study-invitation', [
-            'user' => $user,
-            'study' => $study->load('researcher'),
-            'invite' => $invite,
-            'criteria' => $criteria,
-            'criteriaSummary' => $matching->criteriaSummary($criteria),
-            'match' => $match,
-        ]);
+        return redirect()->route('studies.show', $study);
     }
 
     public function accept(Study $study, StudyMatchingService $matching)

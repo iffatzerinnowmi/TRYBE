@@ -58,6 +58,8 @@
                             } }}">
                                 {{ strtoupper($study->status->label()) }}
                             </x-badge>
+
+                            <x-btn href="{{ route('studies.show', $study) }}" variant="ghost" size="sm">View study</x-btn>
                         </div>
 
                         @if ($total > 0)
@@ -124,6 +126,9 @@
                                             <x-badge tone="{{ $match->strong_match ? 'expert' : 'gold' }}">
                                                 {{ $match->match_score }}%
                                             </x-badge>
+
+                                            <x-btn href="{{ route('researcher.studies.participants.show', [$study, $match->user]) }}"
+                                                   variant="ghost" size="sm">View profile</x-btn>
 
                                             @if ($match->invited)
                                                 <x-badge tone="neutral">Invited</x-badge>

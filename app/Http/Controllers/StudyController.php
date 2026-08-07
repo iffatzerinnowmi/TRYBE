@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Enums\IncentiveType;
+use App\Enums\PipelineStage;
 use App\Enums\StudyStatus;
 use App\Http\Requests\StoreStudyRequest;
 use App\Models\Study;
+use App\Models\StudyParticipation;
+use App\Models\UserNotification;
+use App\Services\StudyMatchingService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -19,6 +23,34 @@ use Illuminate\Support\Facades\DB;
  */
 class StudyController extends Controller
 {
+    public function index(StudyMatchingService $matching)
+    {
+        $user = auth()->user();
+
+        $studies = Study::query()
+            ->with('researcher')
+            ->where('status', StudyStatus::OPEN)
+            ->latest('id')
+            ->get();
+
+        if ($user?->participantProfile) {
+            $studies = $studies->map(function (Study $study) use ($matching, $user) {
+                $score = $matching->assessUserForStudy($user, $matching->criteriaForStudy($study));
+
+                $study->setAttribute('match_score', $score['score']);
+                $study->setAttribute('match_reasons', $score['reasons']);
+                $study->setAttribute('strong_match', $score['score'] >= $matching->strongThreshold());
+
+                return $study;
+            });
+        }
+
+        return view('studies.index', [
+            'user' => $user,
+            'studies' => $studies,
+        ]);
+    }
+
     public function create()
     {
         return view('studies.create', [
@@ -64,7 +96,7 @@ class StudyController extends Controller
                 $study->update([
                     'course_credit_institution'   => $data['course_credit_institution'],
                     'course_credit_document_path' => $request->file('course_credit_document')
-                                                        ->store('course-credit-documents', 'public'),
+                        ->store('course-credit-documents', 'public'),
                     'status' => StudyStatus::OPEN,
                 ]);
             } else {
@@ -74,10 +106,69 @@ class StudyController extends Controller
             return $study;
         });
 
-        return redirect()->route('dashboard')->with('status',
+        return redirect()->route('dashboard')->with(
+            'status',
             $study->status === StudyStatus::OPEN
                 ? "Study posted — it's live for participants now."
-                : "Study saved as a draft — the escrow lock didn't go through, try again.");
+                : "Study saved as a draft — the escrow lock didn't go through, try again."
+        );
+    }
+
+    public function show(Study $study, StudyMatchingService $matching)
+    {
+        $user = auth()->user();
+        $study->load('researcher');
+
+        abort_if($user->role?->value === 'researcher' && $study->researcher_id !== $user->id, 403);
+
+        $criteria = $matching->criteriaForStudy($study);
+
+        $match = null;
+        $invite = null;
+        $participation = null;
+        $currentParticipants = collect();
+        $matchedParticipants = collect();
+
+        if ($user->role?->value === 'participant') {
+            $match = $matching->assessUserForStudy($user, $criteria);
+            $invite = UserNotification::query()
+                ->where('user_id', $user->id)
+                ->where('type', 'studies')
+                ->where('title', $matching->invitationTitle($study))
+                ->first();
+
+            $participation = StudyParticipation::query()
+                ->where('study_id', $study->id)
+                ->where('participant_id', $user->id)
+                ->first();
+        }
+
+        if ($user->role?->value === 'researcher' && $study->researcher_id === $user->id) {
+            $currentParticipants = StudyParticipation::query()
+                ->with(['participant.participantProfile'])
+                ->where('study_id', $study->id)
+                ->where('stage', PipelineStage::CONFIRMED->value)
+                ->latest('updated_at')
+                ->get();
+
+            $matchedParticipants = $matching->rankParticipantsForStudy($study, 5)->map(function ($profile) use ($study, $matching) {
+                $profile->setAttribute('invited', $matching->hasInvitation($profile->user, $study));
+
+                return $profile;
+            });
+        }
+
+        return view('studies.show', [
+            'user' => $user,
+            'study' => $study,
+            'criteria' => $criteria,
+            'criteriaSummary' => $matching->criteriaSummary($criteria),
+            'match' => $match,
+            'invite' => $invite,
+            'participation' => $participation,
+            'currentParticipants' => $currentParticipants,
+            'matchedParticipants' => $matchedParticipants,
+        ]);
     }
 
     /**

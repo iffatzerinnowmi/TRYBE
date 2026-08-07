@@ -6,7 +6,7 @@
 <div class="wrap pb-20">
 
     <x-page-header eyebrow="Participant · Home" title="Welcome back, {{ explode(' ', $user->name)[0] }}.">
-        <x-btn href="/studies">Browse studies</x-btn>
+        <x-btn href="{{ route('studies.index') }}">Browse studies</x-btn>
     </x-page-header>
 
     @if (session('status'))
@@ -107,7 +107,7 @@
                             @endif
                         </div>
 
-                        <x-btn href="/studies/{{ $study->id }}" variant="soft" size="sm">View</x-btn>
+                        <x-btn href="{{ route('studies.show', $study) }}" variant="soft" size="sm">View</x-btn>
                     </div>
                 @empty
                     <p class="py-3 text-[13.5px] text-dim">

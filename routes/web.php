@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrganizationDashboardController;
 use App\Http\Controllers\ParticipantDashboardController;
 use App\Http\Controllers\ParticipantStudyInvitationController;
+use App\Http\Controllers\ResearcherParticipantController;
 use App\Http\Controllers\ResearcherDashboardController;
 use App\Http\Controllers\StudyInvitationController;
 use App\Http\Controllers\CredentialController;
@@ -52,6 +53,9 @@ Route::middleware('role:researcher,organization')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/logout',   [AuthController::class, 'logout'])->name('logout');
+
+    Route::get('/studies', [StudyController::class, 'index'])->name('studies.index');
+    Route::get('/studies/{study}', [StudyController::class, 'show'])->name('studies.show');
 });
 Route::middleware('auth')->group(function () {
 
@@ -133,6 +137,8 @@ Route::middleware('role:participant')->prefix('participant')->name('participant.
 Route::middleware('role:researcher')->prefix('researcher')->name('researcher.')->group(function () {
     Route::get('/endorsements', [EndorsementController::class, 'index'])
         ->name('endorsements');
+    Route::get('/studies/{study}/participants/{participant}', [ResearcherParticipantController::class, 'show'])
+        ->name('studies.participants.show');
     Route::post('/endorsements', [EndorsementController::class, 'store'])
         ->name('endorsements.store');
     Route::post('/studies/{study}/invite/{participant}', [StudyInvitationController::class, 'store'])

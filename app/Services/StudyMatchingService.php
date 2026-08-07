@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\CredentialLevel;
+use App\Enums\PipelineStage;
 use App\Enums\StudyStatus;
 use App\Enums\UserRole;
 use App\Models\ParticipantProfile;
@@ -117,6 +118,11 @@ class StudyMatchingService
         $query = ParticipantProfile::query()
             ->with('user')
             ->whereHas('user', fn(Builder $builder) => $builder->where('role', UserRole::PARTICIPANT->value));
+
+        $query->whereDoesntHave('user.participations', function (Builder $builder) use ($study) {
+            $builder->where('study_id', $study->id)
+                ->where('stage', PipelineStage::CONFIRMED->value);
+        });
 
         if (! empty($criteria['age'])) {
             [$minAge, $maxAge] = $criteria['age'];
@@ -252,7 +258,7 @@ class StudyMatchingService
 
     public function invitationUrl(Study $study): string
     {
-        return route('participant.studies.invitation', $study);
+        return route('studies.show', $study);
     }
 
     public function invitationTitle(Study $study): string
