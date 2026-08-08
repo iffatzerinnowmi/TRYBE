@@ -1,5 +1,6 @@
 <?php
 namespace App\Models;
+use Laravel\Sanctum\HasApiTokens;
 use App\Enums\UserRole;
 use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -8,8 +9,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable {
-    use Notifiable;
-
+    use HasApiTokens, Notifiable;
     protected $fillable = [
         'name','email','phone','password','role','location','verification_status','avatar_path',
         'organization_name','organization_type','registration_documents_path',
