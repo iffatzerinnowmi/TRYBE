@@ -18,6 +18,10 @@ use App\Models\User;
  *
  * The weights live in config/platform.php, not in this file, so the balance
  * can be retuned without touching any logic.
+ *
+ * SINGLE WRITER: this class is the only place that writes rel_attendance,
+ * rel_completion, rel_reviews and reliability_score. Controllers — web or
+ * API — ask this service, they never update those columns themselves.
  */
 class ReliabilityService
 {
@@ -150,6 +154,67 @@ class ReliabilityService
             'score'     => $score,
             'from'      => $before,
             'changed'   => $before !== $score,
+        ];
+    }
+
+    // -----------------------------------------------------------------
+    // ADMIN OVERRIDE  (added for the API layer)
+    // -----------------------------------------------------------------
+
+    /**
+     * Work out a score from three raw 0–100 values using the configured
+     * weights, without touching the database.
+     *
+     * Used by the admin override, and useful for "what if" previews.
+     */
+    public function scoreFromValues(int $attendance, int $completion, int $reviews): int
+    {
+        $weights = config('platform.reliability_weights');
+
+        $total = $attendance * (int) ($weights['attendance'] ?? 0) / 100
+               + $completion * (int) ($weights['completion'] ?? 0) / 100
+               + $reviews    * (int) ($weights['reviews']    ?? 0) / 100;
+
+        return (int) min(100, max(0, round($total)));
+    }
+
+    /**
+     * Admin override — set one or more factors by hand, then recompute and
+     * save the cached score from them.
+     *
+     * This exists so the weighting rule can be demonstrated live: change one
+     * factor, watch the total move by exactly its weighted share. Any factor
+     * left out of $values keeps its current stored value.
+     *
+     * Note this deliberately lives in the service, not the controller, so
+     * that every write to the reliability columns still goes through one
+     * class.
+     *
+     * @param  array<string,int|null>  $values  keys: rel_attendance, rel_completion, rel_reviews
+     */
+    public function overrideFactors(User $user, array $values): array
+    {
+        $profile = $user->participantProfile;
+        $before  = $profile->reliability_score;
+
+        $attendance = (int) ($values['rel_attendance'] ?? $profile->rel_attendance);
+        $completion = (int) ($values['rel_completion'] ?? $profile->rel_completion);
+        $reviews    = (int) ($values['rel_reviews']    ?? $profile->rel_reviews);
+
+        $score = $this->scoreFromValues($attendance, $completion, $reviews);
+
+        $profile->update([
+            'rel_attendance'    => $attendance,
+            'rel_completion'    => $completion,
+            'rel_reviews'       => $reviews,
+            'reliability_score' => $score,
+        ]);
+
+        return [
+            'profile' => $profile->fresh(),
+            'score'   => $score,
+            'from'    => $before,
+            'changed' => $before !== $score,
         ];
     }
 

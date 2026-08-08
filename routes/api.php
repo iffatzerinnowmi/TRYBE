@@ -1,27 +1,127 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthApiController;
+use App\Http\Controllers\Api\V1\CredentialApiController;
+use App\Http\Controllers\Api\V1\ReliabilityApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
 | TRYBE API — v1
 |--------------------------------------------------------------------------
-| Every route here is automatically prefixed with /api by Laravel,
-| and we add /v1 on top. So: /api/v1/auth/login
+|
+| Laravel prefixes everything in this file with /api automatically, and we
+| add /v1 on top. So a route written as 'auth/login' is reachable at:
+|
+|     POST /api/v1/auth/login
+|
+| ------------------------------------------------------------------------
+| TEAM RULES — please read before adding anything
+| ------------------------------------------------------------------------
+|
+| 1. Add your routes ONLY inside your own member block below. Git merges
+|    this file line by line, so four people editing four separate blocks
+|    almost never conflict — but four people editing the same lines will.
+|
+| 2. Anything that touches user data goes inside the auth:sanctum group.
+|    A route left in the public section is a route anyone on the internet
+|    can call without logging in.
+|
+| 3. Import controllers with a `use` statement at the top, in alphabetical
+|    order. Duplicate imports are the usual cause of a merge that git
+|    accepts but PHP refuses to run.
+|
+| 4. Run `php artisan route:list` after EVERY merge. git diff will not tell
+|    you this file is broken. route:list will.
+|
 */
 
 Route::prefix('v1')->group(function () {
 
-    // ---- Public ----
+    /*
+    |----------------------------------------------------------------------
+    | PUBLIC — no token required
+    |----------------------------------------------------------------------
+    */
+
     Route::post('auth/register', [AuthApiController::class, 'register']);
     Route::post('auth/login',    [AuthApiController::class, 'login']);
 
-    // ---- Requires Bearer token ----
+
+    /*
+    |----------------------------------------------------------------------
+    | PROTECTED — send: Authorization: Bearer <token>
+    |----------------------------------------------------------------------
+    */
+
     Route::middleware('auth:sanctum')->group(function () {
+
+        // ==================================================================
+        // MEMBER 1 — Nowmi
+        // auth · credentials · reliability · endorsements · notifications
+        // ==================================================================
+
+        // --- Session ---
         Route::post('auth/logout', [AuthApiController::class, 'logout']);
         Route::get('auth/me',      [AuthApiController::class, 'me']);
 
-        // Step 4 (reliability endpoints) will be added here.
+        // --- Reliability score ---
+        Route::get(
+            'participants/{user}/reliability',
+            [ReliabilityApiController::class, 'show']
+        );
+        Route::post(
+            'participants/{user}/reliability/recalculate',
+            [ReliabilityApiController::class, 'recalculate']
+        );
+        Route::patch(
+            'admin/participants/{user}/reliability',
+            [ReliabilityApiController::class, 'update']
+        );
+
+        // --- Credentialing (Bronze / Gold / Expert) ---
+        Route::get(
+            'participants/{user}/credentials',
+            [CredentialApiController::class, 'show']
+        );
+        Route::post(
+            'participants/{user}/credentials/recalculate',
+            [CredentialApiController::class, 'recalculate']
+        );
+        Route::get(
+            'participants/{user}/credentials/completed-studies',
+            [CredentialApiController::class, 'completedStudies']
+        );
+
+        // --- Cross-module: ranks participants for a study's limited seats ---
+        Route::get(
+            'studies/{study}/auction-ranking',
+            [ReliabilityApiController::class, 'auctionRanking']
+        );
+
+
+        // ==================================================================
+        // MEMBER 2 — Roza
+        // study creation · listings · screener forms · pipelines
+        // ==================================================================
+
+        // (add your routes here)
+
+
+        // ==================================================================
+        // MEMBER 3 — Lamia
+        // karma · payments · escrow · free-to-paid unlock
+        // ==================================================================
+
+        // (add your routes here)
+
+
+        // ==================================================================
+        // MEMBER 4 — Sarah
+        // competitions · buddy matching · groups · referral · feed
+        // ==================================================================
+
+        // (add your routes here)
+
     });
 });
