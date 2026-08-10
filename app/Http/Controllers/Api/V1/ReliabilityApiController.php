@@ -21,6 +21,18 @@ use Illuminate\Http\Request;
  * JSON keys deliberately match the database column names exactly
  * (rel_attendance, rel_completion, rel_reviews, reliability_score) so that
  * nobody on the team has to guess what a field is called.
+ *
+ * STORED vs LIVE
+ * --------------
+ * Every factor is reported twice, and the distinction matters:
+ *
+ *   stored_value  — what is saved on participant_profiles right now. The
+ *                   weighted contributions of the stored values always add
+ *                   up to reliability_score, so the arithmetic reconciles.
+ *
+ *   live_value    — what the current participation and review data says.
+ *                   If this differs from stored, the saved score is stale
+ *                   and a recalculate is due. in_sync tells you at a glance.
  */
 class ReliabilityApiController extends Controller
 {
@@ -54,7 +66,7 @@ class ReliabilityApiController extends Controller
 
         return response()->json([
             'message' => $result['changed']
-                ? 'Reliability recalculated: ' . $result['from'] . ' → ' . $result['score'] . '.'
+                ? 'Reliability recalculated: ' . $result['from'] . ' -> ' . $result['score'] . '.'
                 : 'Reliability recalculated. Still ' . $result['score'] . '.',
             'previous_score' => $result['from'],
             'new_score'      => $result['score'],
@@ -130,12 +142,12 @@ class ReliabilityApiController extends Controller
 
         return response()->json([
             'data' => [
-                'study_id'         => $study->id,
-                'study_title'      => $study->title,
-                'status'           => $study->status,
-                'seats_available'  => $seats,
-                'ranked_by'        => 'reliability_score',
-                'ranking'          => $ranking,
+                'study_id'        => $study->id,
+                'study_title'     => $study->title,
+                'status'          => $study->status,
+                'seats_available' => $seats,
+                'ranked_by'       => 'reliability_score',
+                'ranking'         => $ranking,
             ],
         ], 200);
     }
@@ -147,10 +159,11 @@ class ReliabilityApiController extends Controller
 
     private function payload(User $user): array
     {
-        $profile   = $user->participantProfile;
-        $breakdown = $this->reliability->breakdown($user);
-        $liveScore = $this->reliability->score($user);
-        $band      = $this->reliability->band($profile->reliability_score);
+        $profile     = $user->participantProfile;
+        $breakdown   = $this->reliability->breakdown($user);
+        $liveScore   = $this->reliability->score($user);
+        $storedScore = (int) $profile->reliability_score;
+        $band        = $this->reliability->band($storedScore);
 
         // Service keys are attendance/completion/reviews.
         // JSON keys are the database column names, so nothing is ambiguous.
@@ -160,45 +173,64 @@ class ReliabilityApiController extends Controller
             'rel_reviews'    => 'reviews',
         ];
 
-        $factors = [];
+        $factors      = [];
+        $factorsTotal = 0;
 
         foreach ($map as $column => $serviceKey) {
             $factor = $breakdown[$serviceKey];
 
+            $storedValue = (int) $profile->{$column};
+            $weight      = (int) $factor['weight'];
+
+            // Contribution is derived from the STORED value, so the three
+            // contributions always add up to reliability_score.
+            $contribution = round($storedValue * $weight / 100, 1);
+            $factorsTotal += $contribution;
+
             $factors[$column] = [
-                'label'        => $factor['label'],
-                'description'  => $factor['desc'],
-                'value'        => $factor['value'],
-                'weight'       => $factor['weight'],
-                'contribution' => $factor['contribution'],
-                'has_data'     => $factor['hasData'],
-                'detail'       => $factor['detail'],
+                'label'             => $factor['label'],
+                'description'       => $factor['desc'],
+                'weight'            => $weight,
+
+                // Saved on the profile — these reconcile with the total.
+                'stored_value'      => $storedValue,
+                'contribution'      => $contribution,
+
+                // What the live data says right now.
+                'live_value'        => $factor['value'],
+                'live_contribution' => $factor['contribution'],
+
+                'has_data'          => $factor['hasData'],
+                'detail'            => $factor['detail'],
             ];
         }
 
         return [
             'user_id'           => $user->id,
             'name'              => $user->name,
-            'reliability_score' => $profile->reliability_score,
+
+            // The saved score. Equals the sum of the contributions above.
+            'reliability_score' => $storedScore,
+            'factors_total'     => round($factorsTotal, 1),
+
             'band' => [
                 'label'   => $band['label'],
                 'tone'    => $band['tone'],
                 'message' => $band['msg'],
             ],
+
             'factors' => $factors,
 
-            // What is currently saved on the profile.
             'stored' => [
-                'rel_attendance'    => $profile->rel_attendance,
-                'rel_completion'    => $profile->rel_completion,
-                'rel_reviews'       => $profile->rel_reviews,
-                'reliability_score' => $profile->reliability_score,
+                'rel_attendance'    => (int) $profile->rel_attendance,
+                'rel_completion'    => (int) $profile->rel_completion,
+                'rel_reviews'       => (int) $profile->rel_reviews,
+                'reliability_score' => $storedScore,
             ],
 
-            // What the live data says right now. If these differ, the stored
-            // score is stale and a recalculate is due.
+            // What a recalculate would produce if run right now.
             'live_score' => $liveScore,
-            'in_sync'    => $liveScore === (int) $profile->reliability_score,
+            'in_sync'    => $liveScore === $storedScore,
         ];
     }
 

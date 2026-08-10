@@ -207,9 +207,35 @@ class DatabaseSeeder extends Seeder
         foreach ([$rafi, $sadia, $tanvir, $extra[0], $extra[1]] as $p) {
             StudyReview::create([
                 'study_id' => $s3->id, 'researcher_id' => $anisa->id, 'participant_id' => $p->id,
+                'reviewer_role' => 'researcher',
                 'stars' => rand(4, 5), 'comment' => 'Clear instructions, quick payment.',
             ]);
         }
+
+        // ---------------------------------------------------------------
+        // Researcher reviews OF Iffat, on studies she actually completed.
+        //
+        // reviewer_role MUST be 'researcher'. The column defaults to
+        // 'participant' (a participant reviewing the study), and the
+        // ReliabilityService only counts reviews written BY researchers.
+        // Without these three rows Iffat's rel_reviews computes to 0 and
+        // her live score caps at 80.
+        // ---------------------------------------------------------------
+        StudyReview::create([
+            'study_id' => $s2->id, 'researcher_id' => $anisa->id, 'participant_id' => $iffat->id,
+            'reviewer_role' => 'researcher',
+            'stars' => 5, 'comment' => 'Punctual and thorough throughout the session.',
+        ]);
+        StudyReview::create([
+            'study_id' => $s6->id, 'researcher_id' => $karim->id, 'participant_id' => $iffat->id,
+            'reviewer_role' => 'researcher',
+            'stars' => 5, 'comment' => 'Excellent recall, followed instructions precisely.',
+        ]);
+        StudyReview::create([
+            'study_id' => $s7->id, 'researcher_id' => $nasrin->id, 'participant_id' => $iffat->id,
+            'reviewer_role' => 'researcher',
+            'stars' => 4, 'comment' => 'Completed the full diary period without prompting.',
+        ]);
 
         $this->command->info('TRYBE dummy data seeded: '.User::count().' users, '.Study::count().' studies.');
     }
