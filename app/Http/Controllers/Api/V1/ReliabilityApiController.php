@@ -33,6 +33,13 @@ use Illuminate\Http\Request;
  *   live_value    — what the current participation and review data says.
  *                   If this differs from stored, the saved score is stale
  *                   and a recalculate is due. in_sync tells you at a glance.
+ *
+ * THIS PAYLOAD DRIVES THE WHOLE PAGE
+ * ----------------------------------
+ * resources/views/participant/reliability.blade.php ships with no data at
+ * all — it fetches this endpoint and renders from the JSON. So anything the
+ * page needs to display must appear here, including the weights table and
+ * the seat-auction preview.
  */
 class ReliabilityApiController extends Controller
 {
@@ -119,6 +126,10 @@ class ReliabilityApiController extends Controller
      * INTEGRATION ENDPOINT — reads a study (Member 2's module) and ranks
      * participants for its limited seats using this module's reliability
      * score. High-demand studies award seats by reliability, not first-come.
+     *
+     * Different from the 'auction' block inside payload() below: that one is
+     * a generic preview for the participant's own page, this one is tied to
+     * one real study's slot count.
      */
     public function auctionRanking(Request $request, Study $study): JsonResponse
     {
@@ -175,6 +186,7 @@ class ReliabilityApiController extends Controller
 
         $factors      = [];
         $factorsTotal = 0;
+        $liveTotal    = 0;
 
         foreach ($map as $column => $serviceKey) {
             $factor = $breakdown[$serviceKey];
@@ -186,8 +198,10 @@ class ReliabilityApiController extends Controller
             // contributions always add up to reliability_score.
             $contribution = round($storedValue * $weight / 100, 1);
             $factorsTotal += $contribution;
+            $liveTotal    += $factor['contribution'];
 
             $factors[$column] = [
+                'key'               => $serviceKey,
                 'label'             => $factor['label'],
                 'description'       => $factor['desc'],
                 'weight'            => $weight,
@@ -221,6 +235,13 @@ class ReliabilityApiController extends Controller
 
             'factors' => $factors,
 
+            // The raw weights table, so the page can show them and check
+            // they still add up to 100 after a live edit.
+            'weights' => array_map(
+                'intval',
+                config('platform.reliability_weights', [])
+            ),
+
             'stored' => [
                 'rel_attendance'    => (int) $profile->rel_attendance,
                 'rel_completion'    => (int) $profile->rel_completion,
@@ -228,8 +249,12 @@ class ReliabilityApiController extends Controller
                 'reliability_score' => $storedScore,
             ],
 
+            // Where this participant would land in a 3-seat study.
+            'auction' => $this->reliability->seatAuction($user),
+
             // What a recalculate would produce if run right now.
             'live_score' => $liveScore,
+            'live_total' => round($liveTotal, 1),
             'in_sync'    => $liveScore === $storedScore,
         ];
     }

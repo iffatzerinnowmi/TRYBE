@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\PipelineStage;
+use App\Models\ParticipantProfile;
 use App\Models\StudyParticipation;
 use App\Models\StudyReview;
 use App\Models\User;
@@ -22,6 +23,9 @@ use App\Models\User;
  * SINGLE WRITER: this class is the only place that writes rel_attendance,
  * rel_completion, rel_reviews and reliability_score. Controllers — web or
  * API — ask this service, they never update those columns themselves.
+ *
+ * SINGLE SOURCE: the seat-auction preview also lives here rather than in a
+ * controller, so the web page and the API rank participants identically.
  */
 class ReliabilityService
 {
@@ -154,6 +158,63 @@ class ReliabilityService
             'score'     => $score,
             'from'      => $before,
             'changed'   => $before !== $score,
+        ];
+    }
+
+    // -----------------------------------------------------------------
+    // SEAT AUCTION PREVIEW
+    //
+    // Moved here from ReliabilityController so the web page and the API
+    // produce the same ranking. Nothing here writes to the database — it
+    // is a read-only comparison against other participants' saved scores.
+    //
+    // Note this is the GENERIC preview shown on the reliability page (a
+    // hypothetical 3-seat study). Ranking for one REAL study lives in
+    // ReliabilityApiController::auctionRanking(), which reads that study's
+    // actual slot count.
+    // -----------------------------------------------------------------
+
+    /**
+     * Where this participant would land if seats were awarded by reliability.
+     *
+     * @param  int  $seats     how many seats the hypothetical study has
+     * @param  int  $rivalPool how many other participants to compare against
+     * @param  int  $show      how many rows the page displays
+     */
+    public function seatAuction(User $user, int $seats = 3, int $rivalPool = 12, int $show = 6): array
+    {
+        $myScore = (int) ($user->participantProfile?->reliability_score ?? 0);
+
+        $rivals = ParticipantProfile::query()
+            ->with('user:id,name')
+            ->where('user_id', '!=', $user->id)
+            ->orderByDesc('reliability_score')
+            ->take($rivalPool)
+            ->get();
+
+        // Everyone in one list, me included, then sorted by score.
+        $pool = $rivals->map(fn ($p) => [
+            'name'  => $p->user?->name ?? 'Unknown participant',
+            'score' => (int) $p->reliability_score,
+            'you'   => false,
+        ])->push([
+            'name'  => 'You',
+            'score' => $myScore,
+            'you'   => true,
+        ])->sortByDesc('score')->values();
+
+        // Rank is against the WHOLE pool, even though we only display
+        // the top few rows below it.
+        $rank = $pool->search(fn ($row) => $row['you']) + 1;
+
+        $visible = $pool->take($show)->values();
+
+        return [
+            'seats'    => $seats,
+            'rank'     => $rank,
+            'won_seat' => $rank <= $seats,
+            'rivals'   => max(0, $visible->count() - 1),
+            'pool'     => $visible->all(),
         ];
     }
 

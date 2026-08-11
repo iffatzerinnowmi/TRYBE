@@ -15,8 +15,8 @@ return [
      | weight here changes the maths and the labels together.
      */
     'reliability_weights' => [
-        'attendance' => env('TRYBE_WEIGHT_ATTENDANCE', 40),
+        'attendance' => env('TRYBE_WEIGHT_ATTENDANCE', 20),
         'completion' => env('TRYBE_WEIGHT_COMPLETION', 40),
-        'reviews'    => env('TRYBE_WEIGHT_REVIEWS', 20),
+        'reviews'    => env('TRYBE_WEIGHT_REVIEWS', 40),
     ],
 ];
