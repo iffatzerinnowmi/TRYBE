@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
+use App\Http\Controllers\Api\V1\PlatformApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,16 +42,27 @@ Route::prefix('v1')->group(function () {
     /*
     |----------------------------------------------------------------------
     | PUBLIC — no token required
+    |
+    | Only add here if a stranger genuinely should be able to read it.
+    | Everything else belongs in the protected group below.
     |----------------------------------------------------------------------
     */
 
     Route::post('auth/register', [AuthApiController::class, 'register']);
     Route::post('auth/login',    [AuthApiController::class, 'login']);
 
+    // Counts and thresholds for the landing and login pages, which are
+    // seen by people who are not logged in. No personal data.
+    Route::get('platform/stats', [PlatformApiController::class, 'stats']);
+
 
     /*
     |----------------------------------------------------------------------
-    | PROTECTED — send: Authorization: Bearer <token>
+    | PROTECTED
+    |
+    | Two ways in, both accepted by auth:sanctum:
+    |   - our own pages: the session cookie set at login
+    |   - Postman:       Authorization: Bearer <token>
     |----------------------------------------------------------------------
     */
 

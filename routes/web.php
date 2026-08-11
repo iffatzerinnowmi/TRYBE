@@ -60,7 +60,7 @@ Route::get('/', [PageController::class, 'landing'])->name('landing');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login',  [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    
 
     Route::get('/signup',  [AuthController::class, 'showSignup'])->name('signup');
     Route::post('/signup', [AuthController::class, 'signup']);

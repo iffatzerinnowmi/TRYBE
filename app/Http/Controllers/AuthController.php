@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\CredentialLevel;
 use App\Enums\UserRole;
 use App\Enums\VerificationStatus;
 use App\Models\NotificationPreference;
@@ -22,6 +21,19 @@ use Illuminate\Validation\Rule;
  * depends on them, because "who is logged in" decides what the dashboards,
  * the credential pages and the endorsement pages are allowed to show.
  *
+ * LOGIN IS API-DRIVEN
+ * -------------------
+ * showLogin() serves an empty page. The form posts to
+ * POST /api/v1/auth/login with fetch(), and that endpoint starts the
+ * session. There is no longer a POST /login web route — delete it from
+ * routes/web.php if it is still there.
+ *
+ * SIGNUP IS NOT CONVERTED YET
+ * ---------------------------
+ * It uploads files, which needs FormData rather than JSON, and the register
+ * endpoint does not yet create VerificationRequest rows. Until both are
+ * fixed, signup stays a normal form post. Do not point it at the API.
+ *
  * FIELD NAMES ARE FROZEN. The name="" on every input must stay exactly as it
  * is here, because the other three members validate against the same strings:
  *   role, name, email, phone, password, password_confirmation, location,
@@ -31,37 +43,16 @@ use Illuminate\Validation\Rule;
 class AuthController extends Controller
 {
     /* =====================================================================
-       LOGIN
+       LOGIN  — page shell only
        ===================================================================== */
 
-    /** Show the login form. */
+    /**
+     * The login page passes nothing. Its side-panel numbers come from
+     * GET /api/v1/platform/stats, which is public so a guest can call it.
+     */
     public function showLogin()
     {
-        return view('auth.login', [
-            'unlockTarget' => (int) config('platform.free_forms_to_unlock_paid'),
-            'tierCount'    => count(CredentialLevel::cases()) - 1, // minus "none"
-        ]);
-    }
-
-    /** Check the credentials and start the session. */
-    public function login(Request $request)
-    {
-        $credentials = $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
-
-        // Auth::attempt hashes the password and compares it for us.
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            return back()
-                ->withInput($request->only('email', 'remember'))
-                ->withErrors(['email' => "Those credentials don't match an account."]);
-        }
-
-        // Stops session-fixation attacks: new session id after logging in.
-        $request->session()->regenerate();
-
-        return redirect()->intended('/dashboard');
+        return view('auth.login');
     }
 
     /* =====================================================================
@@ -194,6 +185,10 @@ class AuthController extends Controller
        LOGOUT
        ===================================================================== */
 
+    /**
+     * Still a normal form post from the navbar. The API also has
+     * POST /api/v1/auth/logout, which does the same thing for Postman.
+     */
     public function logout(Request $request)
     {
         Auth::logout();
