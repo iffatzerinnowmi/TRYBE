@@ -145,8 +145,7 @@ Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('pa
        delete the recalculate POST below the same way reliability's was. */
     Route::get('/credentials', [CredentialController::class, 'index'])
         ->name('credentials');
-    Route::post('/credentials/recalculate', [CredentialController::class, 'recalculate'])
-        ->name('credentials.recalculate');
+    
 
     /* ---- FEATURE 2 — Reliability score (API-DRIVEN) ----
        One GET only. The page fetches its data from

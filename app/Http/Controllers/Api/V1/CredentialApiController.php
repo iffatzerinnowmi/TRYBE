@@ -17,6 +17,18 @@ use Illuminate\Http\Request;
  * Like the reliability API, this holds no rules of its own. Thresholds come
  * from CredentialLevel::fromCompletions() via CredentialService, so the
  * Blade page, this API and the artisan command can never disagree.
+ *
+ * THIS DRIVES THE WHOLE PAGE
+ * --------------------------
+ * resources/views/participant/credentials.blade.php ships with no data. It
+ * calls two endpoints on load:
+ *
+ *     GET .../credentials                     -> badge, ladder, progress
+ *     GET .../credentials/completed-studies   -> the history list
+ *
+ * Anything the page displays must therefore appear in one of them —
+ * including display labels, which is why stage_label and completed_on are
+ * built here rather than in JavaScript. The enum owns its own labels.
  */
 class CredentialApiController extends Controller
 {
@@ -85,8 +97,19 @@ class CredentialApiController extends Controller
             'category'        => $p->study?->category,
             'researcher_id'   => $p->study?->researcher_id,
             'researcher_name' => $p->study?->researcher?->name,
+
             'stage'           => $p->stage instanceof \BackedEnum ? $p->stage->value : $p->stage,
+
+            // Display label from the enum itself, so the page never has to
+            // hardcode "Paid" or "Completed" in JavaScript.
+            'stage_label'     => $p->stage instanceof PipelineStage
+                                    ? $p->stage->label()
+                                    : (string) $p->stage,
+
             'completed_at'    => $p->completed_at?->toIso8601String(),
+
+            // Pre-formatted for display, so the page does no date maths.
+            'completed_on'    => $p->completed_at?->format('d M Y'),
         ]);
 
         return response()->json([
