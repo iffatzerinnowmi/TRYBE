@@ -102,16 +102,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/studies',          [StudyController::class, 'index'])->name('studies.index');
     Route::get('/studies/{study}',  [StudyController::class, 'show'])->name('studies.show');
 
-    /* ---- Notification centre (Member 1 — every logged-in role) ---- */
-    Route::prefix('notifications')->name('notifications.')->group(function () {
-        Route::get('/',                   [NotificationController::class, 'index'])->name('index');
-        Route::post('/preferences',       [NotificationController::class, 'updatePreferences'])->name('preferences');
-        Route::post('/subscribe',         [NotificationController::class, 'subscribe'])->name('subscribe');
-        Route::post('/unsubscribe',       [NotificationController::class, 'unsubscribe'])->name('unsubscribe');
-        Route::post('/test',              [NotificationController::class, 'test'])->name('test');
-        Route::post('/read',              [NotificationController::class, 'markAllRead'])->name('read');
-        Route::post('/read/{notification}', [NotificationController::class, 'markRead'])->name('readOne');
-    });
+    
 });
 
 
@@ -203,3 +194,8 @@ Route::middleware(['auth', 'role:researcher,organization'])->group(function () {
     Route::get('/verification',  [VerificationController::class, 'index'])->name('verification.index');
     Route::post('/verification', [VerificationController::class, 'store'])->name('verification.store');
 });
+/* ---- Notification centre (Member 1 — every logged-in role) ----
+       One GET only. The page is API-driven: the feed, preferences, push
+       setup and mark-as-read all go through /api/v1/notifications/*. */
+    Route::get('/notifications', [NotificationController::class, 'index'])
+        ->name('notifications.index');

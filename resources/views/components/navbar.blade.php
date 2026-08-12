@@ -5,6 +5,17 @@
     Links use url('/...') instead of route('...') on purpose: the named routes
     do not exist until Sections 4 and 5, and url() never throws an error for a
     path that is not registered yet.
+
+    THE BELL IS API-DRIVEN
+    ----------------------
+    This component used to receive $navUnreadCount and $navUnread from
+    App\View\Composers\NotificationComposer, which ran two queries on every
+    page in the app. That composer is no longer registered — the bell now
+    fetches GET /api/v1/notifications/unread-summary for itself.
+
+    That matters for more than tidiness: the navbar appears on every page, so
+    while it was fed by the server there was no page in TRYBE that was fully
+    API-driven.
 --}}
 
 @php
@@ -89,9 +100,8 @@
                     </span>
 
                     {{-- ================= NOTIFICATION BELL =================
-                         $navUnreadCount and $navUnread are supplied by
-                         App\View\Composers\NotificationComposer, which attaches
-                         them to this component on every page it renders.
+                         Empty on first paint. The script at the bottom fills
+                         the badge and the dropdown from the API.
                     ================================================================ --}}
                     <div class="relative" id="bell-wrap">
                         <button type="button" id="bell-btn" aria-label="Notifications"
@@ -99,14 +109,10 @@
                                        border-line-hi bg-surface text-[17px] transition
                                        hover:-translate-y-px hover:border-plum">
                             🔔
-                            @if ($navUnreadCount > 0)
-                                <span id="bell-count"
-                                      class="absolute -right-1.5 -top-1.5 grid h-5 min-w-[20px] place-items-center
-                                             rounded-full border-2 border-mint bg-danger px-1
-                                             font-mono text-[11px] text-white">
-                                    {{ $navUnreadCount > 9 ? '9+' : $navUnreadCount }}
-                                </span>
-                            @endif
+                            <span id="bell-count"
+                                  class="absolute -right-1.5 -top-1.5 hidden h-5 min-w-[20px] place-items-center
+                                         rounded-full border-2 border-mint bg-danger px-1
+                                         font-mono text-[11px] text-white"></span>
                         </button>
 
                         <div id="bell-dropdown"
@@ -118,41 +124,14 @@
                             <div class="flex items-center justify-between border-b border-line px-[18px] py-[15px]">
                                 <b class="font-display text-base text-ink">Notifications</b>
 
-                                @if ($navUnreadCount > 0)
-                                    <form method="POST" action="/notifications/read">
-                                        @csrf
-                                        <button type="submit"
-                                                class="text-xs font-semibold text-plum hover:underline">
-                                            Mark all read
-                                        </button>
-                                    </form>
-                                @endif
+                                <button type="button" id="bell-read-all"
+                                        class="hidden text-xs font-semibold text-plum hover:underline">
+                                    Mark all read
+                                </button>
                             </div>
 
-                            <div class="max-h-[340px] overflow-y-auto">
-                                @forelse ($navUnread as $item)
-                                    <a href="{{ $item->url ?? '/notifications' }}"
-                                       class="flex gap-3 border-b border-line bg-plum/5 px-[18px] py-3.5
-                                              transition hover:bg-surface-soft">
-                                        <span class="text-[17px]">{{ $item->icon }}</span>
-
-                                        <span class="min-w-0 flex-1">
-                                            <span class="block text-[13px] font-semibold text-ink">{{ $item->title }}</span>
-                                            <span class="mt-0.5 block text-[12px] leading-relaxed text-dim">
-                                                {{ Str::limit($item->body, 90) }}
-                                            </span>
-                                            <span class="mt-1 block font-mono text-[10px] text-steel">
-                                                {{ $item->created_at->diffForHumans() }}
-                                            </span>
-                                        </span>
-
-                                        <span class="mt-1.5 h-[7px] w-[7px] shrink-0 rounded-full bg-plum"></span>
-                                    </a>
-                                @empty
-                                    <p class="px-[18px] py-[34px] text-center text-[13px] text-dim">
-                                        You're all caught up. 🎉
-                                    </p>
-                                @endforelse
+                            <div class="max-h-[340px] overflow-y-auto" id="bell-list">
+                                <p class="px-[18px] py-[34px] text-center text-[13px] text-dim">Loading…</p>
                             </div>
 
                             <div class="border-t border-line bg-surface-soft px-[18px] py-3 text-center">
@@ -211,14 +190,25 @@
 
 @auth
 <script>
-/* Opens and closes the bell dropdown, and closes it when you click away. */
-(function () {
-    var btn = document.getElementById('bell-btn');
-    var menu = document.getElementById('bell-dropdown');
-    var wrap = document.getElementById('bell-wrap');
+/*
+| The bell: opens and closes, and fetches its own unread data.
+|
+| DOMContentLoaded is required — resources/js/app.js loads as a module, which
+| the browser defers until the HTML is parsed, so `api` does not exist before
+| this event fires.
+*/
+document.addEventListener('DOMContentLoaded', function () {
 
-    if (!btn || !menu) return;
+    var btn     = document.getElementById('bell-btn');
+    var menu    = document.getElementById('bell-dropdown');
+    var wrap    = document.getElementById('bell-wrap');
+    var badge   = document.getElementById('bell-count');
+    var list    = document.getElementById('bell-list');
+    var readAll = document.getElementById('bell-read-all');
 
+    if (!btn || !menu) { return; }
+
+    /* ---- open / close ---- */
     var open = false;
 
     function setOpen(next) {
@@ -234,12 +224,86 @@
     });
 
     document.addEventListener('click', function (e) {
-        if (!wrap.contains(e.target)) setOpen(false);
+        if (!wrap.contains(e.target)) { setOpen(false); }
     });
 
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') setOpen(false);
+        if (e.key === 'Escape') { setOpen(false); }
     });
-})();
+
+    /* ---- data ---- */
+    function esc(text) {
+        return String(text === null || text === undefined ? '' : text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function render(data) {
+        var count = data.unread_count;
+
+        // The badge is grid, not block — hidden must be toggled, not replaced.
+        badge.className = count > 0
+            ? 'absolute -right-1.5 -top-1.5 grid h-5 min-w-[20px] place-items-center rounded-full '
+              + 'border-2 border-mint bg-danger px-1 font-mono text-[11px] text-white'
+            : 'absolute -right-1.5 -top-1.5 hidden h-5 min-w-[20px] place-items-center rounded-full '
+              + 'border-2 border-mint bg-danger px-1 font-mono text-[11px] text-white';
+
+        badge.textContent = count > 9 ? '9+' : count;
+
+        readAll.className = count > 0
+            ? 'text-xs font-semibold text-plum hover:underline'
+            : 'hidden text-xs font-semibold text-plum hover:underline';
+
+        if (data.items.length === 0) {
+            list.innerHTML = '<p class="px-[18px] py-[34px] text-center text-[13px] text-dim">'
+                           + "You're all caught up. 🎉</p>";
+            return;
+        }
+
+        var html = '';
+
+        data.items.forEach(function (item) {
+            html +=
+              '<a href="' + esc(item.url) + '" '
+            +    'class="flex gap-3 border-b border-line bg-plum/5 px-[18px] py-3.5 '
+            +    'transition hover:bg-surface-soft">'
+            +   '<span class="text-[17px]">' + esc(item.icon) + '</span>'
+            +   '<span class="min-w-0 flex-1">'
+            +     '<span class="block text-[13px] font-semibold text-ink">' + esc(item.title) + '</span>'
+            +     '<span class="mt-0.5 block text-[12px] leading-relaxed text-dim">' + esc(item.body) + '</span>'
+            +     '<span class="mt-1 block font-mono text-[10px] text-steel">' + esc(item.created_ago) + '</span>'
+            +   '</span>'
+            +   '<span class="mt-1.5 h-[7px] w-[7px] shrink-0 rounded-full bg-plum"></span>'
+            + '</a>';
+        });
+
+        list.innerHTML = html;
+    }
+
+    /* Exposed globally so the notifications page can refresh the bell after
+       marking something read, without duplicating this code. */
+    window.trybeRefreshBell = function () {
+        return api.get('/api/v1/notifications/unread-summary')
+            .then(function (response) { render(response.data); })
+            .catch(function () {
+                list.innerHTML = '<p class="px-[18px] py-[34px] text-center text-[13px] text-dim">'
+                               + 'Could not load notifications.</p>';
+            });
+    };
+
+    readAll.addEventListener('click', function () {
+        this.disabled = true;
+
+        api.post('/api/v1/notifications/read-all')
+            .then(function () { return window.trybeRefreshBell(); })
+            .catch(function () {})
+            .then(function () { readAll.disabled = false; });
+    });
+
+    window.trybeRefreshBell();
+});
 </script>
 @endauth

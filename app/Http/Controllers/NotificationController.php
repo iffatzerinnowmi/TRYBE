@@ -2,210 +2,34 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PushSubscription;
-use App\Models\Study;
-use App\Models\UserNotification;
-use App\Services\NotificationService;
-use App\Services\WebPushService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-
 /**
- * FEATURE — Notification centre + Web Push (external API).
+ * FEATURE — Notification centre + Web Push  (web entry point)
  *
- * Filtering happens here rather than in JavaScript, so a filtered view has its
- * own URL, can be bookmarked, and still works if scripts are blocked.
+ * API-DRIVEN PAGE
+ * ---------------
+ * No data is passed to the view. The feed, the filter chips, the preference
+ * switches and the push status all come from:
+ *
+ *     GET  /api/v1/notifications?filter=...
+ *     POST /api/v1/notifications/preferences
+ *     POST /api/v1/notifications/subscribe
+ *     POST /api/v1/notifications/unsubscribe
+ *     POST /api/v1/notifications/test
+ *     POST /api/v1/notifications/{notification}/read
+ *     POST /api/v1/notifications/read-all
+ *
+ * The navbar bell uses GET /api/v1/notifications/unread-summary, which is
+ * why App\View\Composers\NotificationComposer is no longer registered —
+ * the navbar fetches its own data instead of being handed it.
+ *
+ * Filtering still lives in the URL (?filter=unread) so a filtered view stays
+ * bookmarkable. The page reads it on load and updates it with pushState when
+ * a chip is clicked, rather than reloading.
  */
 class NotificationController extends Controller
 {
-    public function __construct(
-        private NotificationService $notifications,
-        private WebPushService $push,
-    ) {}
-
-    public function index(Request $request)
+    public function index()
     {
-        $user = auth()->user();
-
-        $prefs = $user->notificationPreference
-            ?? $user->notificationPreference()->create([]);
-
-        $base = UserNotification::where('user_id', $user->id);
-
-        $total  = (clone $base)->count();
-        $unread = (clone $base)->unread()->count();
-
-        // Which filter chip is active. Anything unrecognised falls back to all.
-        $allowed = array_merge(['all', 'unread'], array_keys(NotificationService::TYPES));
-        $filter = in_array($request->query('filter'), $allowed, true)
-            ? $request->query('filter')
-            : 'all';
-
-        $items = (clone $base)
-            ->when($filter === 'unread', fn($q) => $q->unread())
-            ->when(
-                ! in_array($filter, ['all', 'unread'], true),
-                fn($q) => $q->where('type', $filter)
-            )
-            ->latest('id')
-            ->take(30)
-            ->get();
-
-        $items = $items->map(function (UserNotification $item) use ($user) {
-            $effectiveUrl = $item->url;
-
-            if (
-                $item->type === 'studies'
-                && Str::startsWith($item->title, 'Invitation: ')
-                && $user->role?->value === 'participant'
-            ) {
-                $studyTitle = Str::after($item->title, 'Invitation: ');
-                $study = Study::query()->where('title', $studyTitle)->first();
-
-                if ($study) {
-                    $effectiveUrl = route('studies.show', $study);
-                }
-            }
-
-            $item->setAttribute('effective_url', $effectiveUrl);
-
-            return $item;
-        });
-
-        // The chips, built from the same TYPES list the preferences use.
-        $filters = [
-            'all'    => ['label' => 'All',    'count' => $total],
-            'unread' => ['label' => 'Unread', 'count' => $unread],
-        ];
-
-        foreach (NotificationService::TYPES as $key => $type) {
-            $filters[$key] = [
-                'label' => $type['icon'] . ' ' . $this->shortLabel($key),
-            ];
-        }
-
-        return view('notifications.index', [
-            'user'      => $user,
-            'prefs'     => $prefs,
-            'types'     => NotificationService::TYPES,
-            'items'     => $items,
-            'total'     => $total,
-            'unread'    => $unread,
-            'filter'    => $filter,
-            'filters'   => $filters,
-            'pushReady' => $this->push->isConfigured(),
-            'vapidKey'  => $this->push->publicKey(),
-        ]);
-    }
-
-    /** Short names for the filter chips — the full labels are too long there. */
-    private function shortLabel(string $key): string
-    {
-        return match ($key) {
-            'studies'    => 'Studies',
-            'verify'     => 'Verification',
-            'endorse'    => 'Endorsements',
-            'streak'     => 'Streaks',
-            'credential' => 'Credentials',
-            default      => ucfirst($key),
-        };
-    }
-
-    /** Save the five on/off switches. */
-    public function updatePreferences(Request $request)
-    {
-        $prefs = auth()->user()->notificationPreference;
-
-        $update = [];
-
-        foreach (NotificationService::TYPES as $key => $type) {
-            // An unchecked checkbox sends nothing at all, so absence = off.
-            $update[$type['column']] = $request->boolean($key);
-        }
-
-        $prefs->update($update);
-
-        return back()->with('status', 'Notification preferences saved.');
-    }
-
-    /**
-     * The browser calls this after the user grants permission. The endpoint
-     * and keys are generated by the browser's push service — we only store them.
-     */
-    public function subscribe(Request $request)
-    {
-        $data = $request->validate([
-            'endpoint'        => ['required', 'string'],
-            'keys.p256dh'     => ['required', 'string'],
-            'keys.auth'       => ['required', 'string'],
-            'contentEncoding' => ['nullable', 'string'],
-        ]);
-
-        PushSubscription::updateOrCreate(
-            [
-                'user_id'       => auth()->id(),
-                'endpoint_hash' => PushSubscription::hashFor($data['endpoint']),
-            ],
-            [
-                'endpoint'         => $data['endpoint'],
-                'public_key'       => $data['keys']['p256dh'],
-                'auth_token'       => $data['keys']['auth'],
-                'content_encoding' => $data['contentEncoding'] ?? 'aesgcm',
-                'last_used_at'     => now(),
-            ]
-        );
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function unsubscribe(Request $request)
-    {
-        $data = $request->validate(['endpoint' => ['required', 'string']]);
-
-        PushSubscription::where('user_id', auth()->id())
-            ->where('endpoint_hash', PushSubscription::hashFor($data['endpoint']))
-            ->delete();
-
-        return response()->json(['ok' => true]);
-    }
-
-    /** Send yourself one, to prove the whole chain works. */
-    public function test()
-    {
-        $notification = $this->notifications->send(
-            auth()->user(),
-            'studies',
-            'Test notification from TRYBE',
-            'If you can see this in your browser, push is working end to end.',
-            url('/notifications')
-        );
-
-        if (! $notification) {
-            return back()->with(
-                'status',
-                'That type is switched off, so nothing was sent. Turn on "New studies" and try again.'
-            );
-        }
-
-        return back()->with('status', 'Test sent — ' . $notification->push_result . '.');
-    }
-
-    /** Mark one notification read, from the feed or the bell dropdown. */
-    public function markRead(UserNotification $notification)
-    {
-        abort_unless($notification->user_id === auth()->id(), 403);
-
-        $notification->update(['read_at' => now()]);
-
-        return back();
-    }
-
-    public function markAllRead()
-    {
-        UserNotification::where('user_id', auth()->id())
-            ->unread()
-            ->update(['read_at' => now()]);
-
-        return back()->with('status', 'All notifications marked as read.');
+        return view('notifications.index');
     }
 }

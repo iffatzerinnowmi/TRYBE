@@ -3,7 +3,11 @@
 @section('title', 'Notifications')
 
 @section('content')
-<div class="wrap pb-16">
+{{--
+    API-DRIVEN PAGE — see participant/reliability.blade.php for the pattern.
+    NotificationController passes nothing; everything below is fetched.
+--}}
+<div class="wrap pb-16" id="notifications-page">
 
     <x-page-header
         eyebrow="Notifications"
@@ -38,126 +42,37 @@
                 Enable notifications
             </button>
 
-            <form method="POST" action="{{ route('notifications.test') }}">
-                @csrf
-                <button type="submit"
-                        class="whitespace-nowrap rounded-xl border border-white/30 bg-white/12
-                               px-[18px] py-[11px] text-[13px] font-semibold text-white
-                               transition hover:bg-white/20">
-                    Send a test
-                </button>
-            </form>
+            {{-- Was a form post. Now calls POST /api/v1/notifications/test. --}}
+            <button type="button" id="test-btn"
+                    class="whitespace-nowrap rounded-xl border border-white/30 bg-white/12
+                           px-[18px] py-[11px] text-[13px] font-semibold text-white
+                           transition hover:bg-white/20 disabled:opacity-45">
+                Send a test
+            </button>
         </div>
     </div>
 
-    @unless ($pushReady)
-        <x-alert type="info" class="mb-6">
-            VAPID keys aren't set, so notifications are recorded and listed below but not
-            pushed to the browser. Run <code class="font-mono">npx web-push generate-vapid-keys</code>
-            and add the keys to <code class="font-mono">.env</code>.
-        </x-alert>
-    @endunless
+    {{-- Shown only when the API reports VAPID keys are missing. --}}
+    <div id="vapid-warning" class="mb-6 hidden rounded-xl bg-flame/10 px-4 py-3 text-[13px] text-flame">
+        VAPID keys aren't set, so notifications are recorded and listed below but not
+        pushed to the browser. Run <code class="font-mono">npx web-push generate-vapid-keys</code>
+        and add the keys to <code class="font-mono">.env</code>.
+    </div>
 
     <div class="grid items-start gap-6 lg:grid-cols-[1.55fr_1fr]">
 
         {{-- ================= FEED ================= --}}
         <x-panel label="Your notifications" class="reveal reveal-d1">
-            <x-slot:action>{{ $total }} total</x-slot:action>
+            <x-slot:action><span id="total-label">—</span></x-slot:action>
 
-            {{-- Filters are links, so the filtering happens in the controller,
-                 not in JavaScript. Bookmarkable, and works without JS. --}}
-            <div class="mb-[18px] flex flex-wrap gap-2">
-                @foreach ($filters as $key => $meta)
-                    @php $active = $filter === $key; @endphp
+            {{-- Chips are buttons now, but the filter still lives in the URL
+                 (?filter=unread) via pushState, so a filtered view can still
+                 be bookmarked and shared. --}}
+            <div class="mb-[18px] flex flex-wrap gap-2" id="filter-chips"></div>
 
-                    <a href="{{ route('notifications.index', $key === 'all' ? [] : ['filter' => $key]) }}"
-                       class="flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12.5px] transition
-                              {{ $active
-                                 ? 'border-plum bg-plum font-semibold text-white'
-                                 : 'border-line-hi bg-surface text-ink hover:border-plum hover:text-plum' }}">
-                        {{ $meta['label'] }}
-
-                        @isset($meta['count'])
-                            <span class="font-mono text-[10.5px] opacity-75">{{ $meta['count'] }}</span>
-                        @endisset
-                    </a>
-                @endforeach
+            <div id="feed">
+                <p class="px-5 py-12 text-center text-[13.5px] text-dim">Loading your notifications…</p>
             </div>
-
-            @forelse ($items as $item)
-                <div class="relative mb-[11px] flex gap-3.5 rounded-[15px] border p-4 transition
-                            hover:translate-x-0.5 last:mb-0
-                            {{ $item->isUnread()
-                               ? 'border-plum/30 bg-plum/[.045]'
-                               : 'border-line hover:border-line-hi' }}">
-
-                    @if ($item->isUnread())
-                        <span class="absolute bottom-4 left-0 top-4 w-[3px] rounded-r-[3px] bg-plum"></span>
-                    @endif
-
-                    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl
-                                 bg-surface-soft text-[18px]">{{ $item->icon }}</span>
-
-                    <div class="min-w-0 flex-1">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <b class="text-[13.5px] text-ink">{{ $item->title }}</b>
-                            @if ($item->isUnread())
-                                <span class="rounded-full bg-plum/12 px-2.5 py-0.5 font-mono text-[10px] text-plum">
-                                    NEW
-                                </span>
-                            @endif
-                        </div>
-
-                        <p class="mt-1 text-[13px] leading-relaxed text-dim">{{ $item->body }}</p>
-
-                        @if ($item->effective_url)
-                            <div class="mt-2">
-                                <a href="{{ $item->effective_url }}"
-                                   class="inline-flex items-center rounded-full border border-plum/25 bg-plum/8 px-3 py-1.5
-                                          font-mono text-[10.5px] text-plum transition hover:bg-plum/12">
-                                    Open invitation
-                                </a>
-                            </div>
-                        @endif
-
-                        <div class="mt-2 flex flex-wrap items-center gap-2.5">
-                            <span class="font-mono text-[10.5px] text-steel">
-                                {{ $item->created_at->diffForHumans() }}
-                            </span>
-
-                            <span class="rounded-full px-2.5 py-0.5 font-mono text-[10px]
-                                         {{ $item->pushed ? 'bg-ok/12 text-ok' : 'bg-steel/20 text-steel' }}">
-                                {{ $item->pushed ? '📲 ' : '💾 ' }}{{ $item->push_result }}
-                            </span>
-                        </div>
-                    </div>
-
-                    @if ($item->isUnread())
-                        <form method="POST" action="{{ route('notifications.readOne', $item) }}" class="self-start">
-                            @csrf
-                            <button type="submit"
-                                    class="whitespace-nowrap rounded-[9px] border border-line-hi px-2.5 py-1.5
-                                           text-[11px] text-dim transition hover:border-plum hover:text-plum">
-                                Mark read
-                            </button>
-                        </form>
-                    @endif
-                </div>
-            @empty
-                <div class="px-5 py-12 text-center">
-                    <span class="mb-3 block text-[34px] opacity-50">🔕</span>
-                    <p class="text-[13.5px] text-dim">
-                        @if ($filter === 'unread')
-                            Nothing here — you're all caught up.
-                        @elseif ($filter !== 'all')
-                            Nothing of this type yet.
-                        @else
-                            Nothing yet. Click <b class="text-ink">Send a test</b> above, or get a
-                            researcher to endorse you.
-                        @endif
-                    </p>
-                </div>
-            @endforelse
         </x-panel>
 
         {{-- ================= PREFERENCES ================= --}}
@@ -165,102 +80,322 @@
                  note="Switch one off and nothing is recorded for it — not stored, not pushed."
                  class="reveal reveal-d2">
 
-            <form method="POST" action="{{ route('notifications.preferences') }}">
-                @csrf
+            <div id="pref-list">
+                <p class="py-6 text-center text-[13px] text-dim">Loading…</p>
+            </div>
 
-                @foreach ($types as $key => $type)
-                    <label class="flex cursor-pointer items-center gap-3.5 border-b border-line
-                                  py-[15px] last:border-none">
+            <p id="pref-count" class="mt-4 text-center font-mono text-[11px] text-steel"></p>
 
-                        <span class="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl
-                                     bg-surface-soft text-base">{{ $type['icon'] }}</span>
-
-                        <span class="min-w-0 flex-1">
-                            <span class="block text-[13.5px] font-semibold text-ink">{{ $type['label'] }}</span>
-                            <span class="mt-0.5 block text-[12px] leading-relaxed text-dim">{{ $type['desc'] }}</span>
-                        </span>
-
-                        <input type="checkbox" name="{{ $key }}" value="1" data-pref
-                               @checked((bool) $prefs->{$type['column']}) class="peer sr-only">
-
-                        <span class="relative h-6 w-11 shrink-0 rounded-full bg-steel/45 transition
-                                     peer-checked:bg-plum peer-checked:[&>span]:translate-x-5">
-                            <span class="absolute left-[3px] top-[3px] h-[18px] w-[18px] rounded-full
-                                         bg-white transition"></span>
-                        </span>
-                    </label>
-                @endforeach
-
-                <p id="pref-count" class="mt-4 text-center font-mono text-[11px] text-steel"></p>
-
-                <div class="mt-[18px]">
-                    <x-btn type="submit">Save preferences</x-btn>
-                </div>
-            </form>
+            <div class="mt-[18px]">
+                <x-btn type="button" id="save-prefs">Save preferences</x-btn>
+            </div>
         </x-panel>
     </div>
 </div>
 
-{{-- Flash message as a toast in the corner, matching the design. --}}
-@if (session('status'))
-    <div id="toast"
-         class="fixed right-6 top-[84px] z-[200] flex w-[320px] gap-3 rounded-[14px] border
-                border-line-hi bg-surface px-4 py-3.5
-                shadow-[0_18px_40px_-18px_rgba(79,58,101,.5)]">
-        <span class="text-[18px]">🔔</span>
-        <div>
-            <div class="text-[13px] font-semibold text-ink">TRYBE</div>
-            <div class="mt-0.5 text-[12px] leading-relaxed text-dim">{{ session('status') }}</div>
-        </div>
-    </div>
-@endif
+{{-- Toast container. Filled by JS after any successful action. --}}
+<div id="toast-slot"></div>
 @endsection
 
 @push('scripts')
 <script>
-/* ---- toast auto-dismiss ---- */
-(function () {
-    var toast = document.getElementById('toast');
-    if (!toast) return;
-    setTimeout(function () {
-        toast.style.transition = 'opacity .3s, transform .3s';
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(24px)';
-        setTimeout(function () { toast.remove(); }, 320);
-    }, 4200);
-})();
+document.addEventListener('DOMContentLoaded', function () {
 
-/* ---- live "N of 5 enabled" counter ---- */
-(function () {
-    var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-pref]'));
-    var label = document.getElementById('pref-count');
-    if (!boxes.length || !label) return;
+    if (!document.getElementById('notifications-page')) { return; }
 
-    function update() {
-        var on = boxes.filter(function (b) { return b.checked; }).length;
-        label.textContent = on + ' of ' + boxes.length + ' enabled';
+    var API = '/api/v1/notifications';
+
+    /* State the page keeps between renders. */
+    var currentFilter = new URLSearchParams(window.location.search).get('filter') || 'all';
+    var vapidKey = null;
+
+    function esc(text) {
+        return String(text === null || text === undefined ? '' : text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
-    boxes.forEach(function (b) { b.addEventListener('change', update); });
-    update();
-})();
+    /* ---------------------------------------------------------------
+       Toast — replaces the old session('status') flash message.
+    --------------------------------------------------------------- */
+    function toast(message) {
+        var box = document.createElement('div');
+        box.className = 'fixed right-6 top-[84px] z-[200] flex w-[320px] gap-3 rounded-[14px] border '
+                      + 'border-line-hi bg-surface px-4 py-3.5 '
+                      + 'shadow-[0_18px_40px_-18px_rgba(79,58,101,.5)]';
+        box.innerHTML = '<span class="text-[18px]">🔔</span>'
+                      + '<div><div class="text-[13px] font-semibold text-ink">TRYBE</div>'
+                      + '<div class="mt-0.5 text-[12px] leading-relaxed text-dim">' + esc(message) + '</div></div>';
 
-/* ---- push subscription ---- */
-(function () {
+        document.getElementById('toast-slot').appendChild(box);
+
+        setTimeout(function () {
+            box.style.transition = 'opacity .3s, transform .3s';
+            box.style.opacity = '0';
+            box.style.transform = 'translateX(24px)';
+            setTimeout(function () { box.remove(); }, 320);
+        }, 4200);
+    }
+
+    /* ---------------------------------------------------------------
+       Rendering
+    --------------------------------------------------------------- */
+
+    function renderChips(data) {
+        var html = '';
+
+        data.filters.forEach(function (chip) {
+            var active = chip.key === data.filter;
+
+            var cls = active
+                ? 'border-plum bg-plum font-semibold text-white'
+                : 'border-line-hi bg-surface text-ink hover:border-plum hover:text-plum';
+
+            var count = (chip.count === null || chip.count === undefined)
+                ? ''
+                : '<span class="font-mono text-[10.5px] opacity-75">' + chip.count + '</span>';
+
+            html += '<button type="button" data-filter="' + esc(chip.key) + '" '
+                  +   'class="flex items-center gap-1.5 rounded-full border px-3.5 py-2 '
+                  +   'text-[12.5px] transition ' + cls + '">'
+                  +   esc(chip.label) + count
+                  + '</button>';
+        });
+
+        document.getElementById('filter-chips').innerHTML = html;
+    }
+
+    function emptyMessage(filter) {
+        if (filter === 'unread') { return "Nothing here — you're all caught up."; }
+        if (filter !== 'all')    { return 'Nothing of this type yet.'; }
+        return 'Nothing yet. Click <b class="text-ink">Send a test</b> above, or get a researcher to endorse you.';
+    }
+
+    function renderFeed(data) {
+        document.getElementById('total-label').textContent = data.total + ' total';
+
+        if (data.items.length === 0) {
+            document.getElementById('feed').innerHTML =
+                '<div class="px-5 py-12 text-center">'
+              +   '<span class="mb-3 block text-[34px] opacity-50">🔕</span>'
+              +   '<p class="text-[13.5px] text-dim">' + emptyMessage(data.filter) + '</p>'
+              + '</div>';
+            return;
+        }
+
+        var html = '';
+
+        data.items.forEach(function (item) {
+            var box = item.is_unread
+                ? 'border-plum/30 bg-plum/[.045]'
+                : 'border-line hover:border-line-hi';
+
+            html +=
+              '<div class="relative mb-[11px] flex gap-3.5 rounded-[15px] border p-4 transition '
+            +      'hover:translate-x-0.5 last:mb-0 ' + box + '" data-row="' + item.id + '">'
+
+            + (item.is_unread
+                ? '<span class="absolute bottom-4 left-0 top-4 w-[3px] rounded-r-[3px] bg-plum"></span>'
+                : '')
+
+            +   '<span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl '
+            +        'bg-surface-soft text-[18px]">' + esc(item.icon) + '</span>'
+
+            +   '<div class="min-w-0 flex-1">'
+            +     '<div class="flex flex-wrap items-center gap-2">'
+            +       '<b class="text-[13.5px] text-ink">' + esc(item.title) + '</b>'
+            +       (item.is_unread
+                      ? '<span class="rounded-full bg-plum/12 px-2.5 py-0.5 font-mono text-[10px] text-plum">NEW</span>'
+                      : '')
+            +     '</div>'
+
+            +     '<p class="mt-1 text-[13px] leading-relaxed text-dim">' + esc(item.body) + '</p>'
+
+            +     (item.url
+                    ? '<div class="mt-2"><a href="' + esc(item.url) + '" '
+                    +   'class="inline-flex items-center rounded-full border border-plum/25 bg-plum/8 '
+                    +   'px-3 py-1.5 font-mono text-[10.5px] text-plum transition hover:bg-plum/12">'
+                    +   'Open</a></div>'
+                    : '')
+
+            +     '<div class="mt-2 flex flex-wrap items-center gap-2.5">'
+            +       '<span class="font-mono text-[10.5px] text-steel">' + esc(item.created_ago) + '</span>'
+            +       '<span class="rounded-full px-2.5 py-0.5 font-mono text-[10px] '
+            +          (item.pushed ? 'bg-ok/12 text-ok' : 'bg-steel/20 text-steel') + '">'
+            +         (item.pushed ? '📲 ' : '💾 ') + esc(item.push_result)
+            +       '</span>'
+            +     '</div>'
+            +   '</div>'
+
+            + (item.is_unread
+                ? '<button type="button" data-read="' + item.id + '" '
+                + 'class="self-start whitespace-nowrap rounded-[9px] border border-line-hi px-2.5 py-1.5 '
+                + 'text-[11px] text-dim transition hover:border-plum hover:text-plum">Mark read</button>'
+                : '')
+
+            + '</div>';
+        });
+
+        document.getElementById('feed').innerHTML = html;
+    }
+
+    function renderPrefs(data) {
+        var html = '';
+
+        data.preferences.forEach(function (pref) {
+            html +=
+              '<label class="flex cursor-pointer items-center gap-3.5 border-b border-line py-[15px] last:border-none">'
+            +   '<span class="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl '
+            +        'bg-surface-soft text-base">' + esc(pref.icon) + '</span>'
+            +   '<span class="min-w-0 flex-1">'
+            +     '<span class="block text-[13.5px] font-semibold text-ink">' + esc(pref.label) + '</span>'
+            +     '<span class="mt-0.5 block text-[12px] leading-relaxed text-dim">' + esc(pref.desc) + '</span>'
+            +   '</span>'
+            +   '<input type="checkbox" data-pref="' + esc(pref.key) + '" '
+            +      (pref.enabled ? 'checked ' : '') + 'class="peer sr-only">'
+            +   '<span class="relative h-6 w-11 shrink-0 rounded-full bg-steel/45 transition '
+            +        'peer-checked:bg-plum peer-checked:[&>span]:translate-x-5">'
+            +     '<span class="absolute left-[3px] top-[3px] h-[18px] w-[18px] rounded-full bg-white transition"></span>'
+            +   '</span>'
+            + '</label>';
+        });
+
+        document.getElementById('pref-list').innerHTML = html;
+        countPrefs();
+    }
+
+    function countPrefs() {
+        var boxes = document.querySelectorAll('[data-pref]');
+        var on = 0;
+        boxes.forEach(function (b) { if (b.checked) { on++; } });
+        document.getElementById('pref-count').textContent = on + ' of ' + boxes.length + ' enabled';
+    }
+
+    /* ---------------------------------------------------------------
+       Loading
+    --------------------------------------------------------------- */
+
+    function load(filter, updateUrl) {
+        currentFilter = filter;
+
+        if (updateUrl) {
+            var url = filter === 'all' ? '/notifications' : '/notifications?filter=' + filter;
+            window.history.pushState({}, '', url);
+        }
+
+        return api.get(API + '?filter=' + encodeURIComponent(filter))
+            .then(function (response) {
+                var data = response.data;
+
+                renderChips(data);
+                renderFeed(data);
+                renderPrefs(data);
+
+                vapidKey = data.push.vapid_key;
+
+                document.getElementById('vapid-warning').className = data.push.configured
+                    ? 'mb-6 hidden rounded-xl bg-flame/10 px-4 py-3 text-[13px] text-flame'
+                    : 'mb-6 rounded-xl bg-flame/10 px-4 py-3 text-[13px] text-flame';
+
+                return data;
+            })
+            .catch(function (error) {
+                document.getElementById('feed').innerHTML =
+                    '<p class="px-5 py-12 text-center text-[13.5px] text-danger">'
+                  + esc(error.message) + '</p>';
+                throw error;
+            });
+    }
+
+    /* ---------------------------------------------------------------
+       Events — one delegated listener, because the rows are replaced
+       on every render and directly-bound handlers would be lost.
+    --------------------------------------------------------------- */
+
+    document.getElementById('filter-chips').addEventListener('click', function (event) {
+        var chip = event.target.closest('[data-filter]');
+        if (chip) { load(chip.dataset.filter, true); }
+    });
+
+    document.getElementById('feed').addEventListener('click', function (event) {
+        var button = event.target.closest('[data-read]');
+        if (!button) { return; }
+
+        button.disabled = true;
+
+        api.post(API + '/' + button.dataset.read + '/read')
+            .then(function () {
+                load(currentFilter, false);
+                if (window.trybeRefreshBell) { window.trybeRefreshBell(); }
+            })
+            .catch(function (error) {
+                toast(error.message);
+                button.disabled = false;
+            });
+    });
+
+    document.getElementById('pref-list').addEventListener('change', countPrefs);
+
+    document.getElementById('save-prefs').addEventListener('click', function () {
+        var button = this;
+        var payload = {};
+
+        document.querySelectorAll('[data-pref]').forEach(function (box) {
+            payload[box.dataset.pref] = box.checked;
+        });
+
+        button.disabled = true;
+
+        api.post(API + '/preferences', payload)
+            .then(function (response) { toast(response.message); })
+            .catch(function (error) { toast(error.message); })
+            .then(function () { button.disabled = false; });
+    });
+
+    document.getElementById('test-btn').addEventListener('click', function () {
+        var button = this;
+        button.disabled = true;
+
+        api.post(API + '/test')
+            .then(function (response) {
+                toast(response.message);
+                return load(currentFilter, false);
+            })
+            .then(function () {
+                if (window.trybeRefreshBell) { window.trybeRefreshBell(); }
+            })
+            .catch(function (error) { toast(error.message); })
+            .then(function () { button.disabled = false; });
+    });
+
+    /* Back/forward buttons still work, because the filter is in the URL. */
+    window.addEventListener('popstate', function () {
+        load(new URLSearchParams(window.location.search).get('filter') || 'all', false);
+    });
+
+    /* ---------------------------------------------------------------
+       Push subscription.
+
+       Unchanged in substance from the original — the browser's push API
+       is the same either way. The only difference is that the endpoint
+       it posts to is now /api/v1/..., and the VAPID key arrives from the
+       API rather than being printed into the page by Blade.
+    --------------------------------------------------------------- */
+
     var enableBtn = document.getElementById('enable-btn');
     var titleEl   = document.getElementById('push-title');
     var stateEl   = document.getElementById('push-state');
     var dotEl     = document.getElementById('push-dot');
     var iconEl    = document.getElementById('push-icon');
 
-    var VAPID_PUBLIC_KEY = @json($vapidKey);
-    var CSRF = document.querySelector('meta[name="csrf-token"]').content;
-
     function urlBase64ToUint8Array(base64String) {
         var padding = '='.repeat((4 - base64String.length % 4) % 4);
-        var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-        var raw = window.atob(base64);
-        var output = new Uint8Array(raw.length);
+        var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        var raw     = window.atob(base64);
+        var output  = new Uint8Array(raw.length);
         for (var i = 0; i < raw.length; ++i) { output[i] = raw.charCodeAt(i); }
         return output;
     }
@@ -272,82 +407,86 @@
         iconEl.style.background = lit ? 'rgba(123,224,174,.25)' : 'rgba(255,255,255,.15)';
     }
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        setState('Push is not supported in this browser', 'Unsupported', 'bg-danger', false);
-        enableBtn.disabled = true;
-        return;
-    }
-
-    if (!VAPID_PUBLIC_KEY) {
-        setState('Push is not configured on the server yet', 'Waiting for VAPID keys', 'bg-flame', false);
-        enableBtn.disabled = true;
-        return;
-    }
-
-    var swReady = navigator.serviceWorker.register('/sw.js');
-
-    function refresh() {
-        if (Notification.permission === 'denied') {
-            setState('Notifications are blocked for this site',
-                     'Blocked — change it in your browser settings', 'bg-danger', false);
+    function setupPush() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            setState('Push is not supported in this browser', 'Unsupported', 'bg-danger', false);
             enableBtn.disabled = true;
             return;
         }
 
-        swReady.then(function (reg) { return reg.pushManager.getSubscription(); })
-               .then(function (sub) {
-            if (sub) {
-                setState('Push notifications are on', 'Enabled on this browser', 'bg-ok', true);
-                enableBtn.textContent = 'Already enabled';
+        if (!vapidKey) {
+            setState('Push is not configured on the server yet', 'Waiting for VAPID keys', 'bg-flame', false);
+            enableBtn.disabled = true;
+            return;
+        }
+
+        var swReady = navigator.serviceWorker.register('/sw.js');
+
+        function refresh() {
+            if (Notification.permission === 'denied') {
+                setState('Notifications are blocked for this site',
+                         'Blocked — change it in your browser settings', 'bg-danger', false);
                 enableBtn.disabled = true;
-            } else {
-                setState('Push notifications are off', 'Not enabled on this browser', 'bg-flame', false);
-            }
-        });
-    }
-
-    enableBtn.addEventListener('click', function () {
-        enableBtn.disabled = true;
-        setState('Waiting for your permission…', 'Asking the browser', 'bg-flame', false);
-
-        Notification.requestPermission().then(function (permission) {
-            if (permission !== 'granted') {
-                setState('Permission was not granted', 'Denied', 'bg-danger', false);
                 return;
             }
 
-            return swReady.then(function (reg) {
-                return reg.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                });
-            }).then(function (sub) {
-                var data = sub.toJSON();
+            swReady.then(function (reg) { return reg.pushManager.getSubscription(); })
+                   .then(function (sub) {
+                if (sub) {
+                    setState('Push notifications are on', 'Enabled on this browser', 'bg-ok', true);
+                    enableBtn.textContent = 'Already enabled';
+                    enableBtn.disabled = true;
+                } else {
+                    setState('Push notifications are off', 'Not enabled on this browser', 'bg-flame', false);
+                }
+            });
+        }
 
-                return fetch(@json(route('notifications.subscribe')), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': CSRF,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
+        enableBtn.addEventListener('click', function () {
+            enableBtn.disabled = true;
+            setState('Waiting for your permission…', 'Asking the browser', 'bg-flame', false);
+
+            Notification.requestPermission().then(function (permission) {
+                if (permission !== 'granted') {
+                    setState('Permission was not granted', 'Denied', 'bg-danger', false);
+                    return;
+                }
+
+                return swReady.then(function (reg) {
+                    return reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(vapidKey)
+                    });
+                }).then(function (sub) {
+                    var data = sub.toJSON();
+
+                    // Goes through the shared helper, so CSRF and headers
+                    // are handled the same way as every other call.
+                    return api.post(API + '/subscribe', {
                         endpoint: data.endpoint,
                         keys: data.keys,
                         contentEncoding: (PushManager.supportedContentEncodings || ['aesgcm'])[0]
-                    })
+                    });
+                }).then(function () {
+                    setState('Push notifications are on', 'Enabled on this browser', 'bg-ok', true);
+                    enableBtn.textContent = 'Already enabled';
+                    toast('Push enabled on this browser.');
                 });
-            }).then(function () {
-                setState('Push notifications are on', 'Enabled on this browser', 'bg-ok', true);
-                enableBtn.textContent = 'Already enabled';
+            }).catch(function (error) {
+                setState('Something went wrong', String(error.message || error), 'bg-danger', false);
+                enableBtn.disabled = false;
             });
-        }).catch(function (error) {
-            setState('Something went wrong', String(error.message || error), 'bg-danger', false);
-            enableBtn.disabled = false;
         });
-    });
 
-    refresh();
-})();
+        refresh();
+    }
+
+    /* Push setup waits for the first load, because the VAPID key is part
+       of that response. */
+    load(currentFilter, false).then(setupPush).catch(function () {
+        setState('Could not reach the server', 'Unknown', 'bg-danger', false);
+        enableBtn.disabled = true;
+    });
+});
 </script>
 @endpush

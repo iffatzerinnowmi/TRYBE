@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
+use App\Http\Controllers\Api\V1\NotificationApiController;
 use App\Http\Controllers\Api\V1\PlatformApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
 use Illuminate\Support\Facades\Route;
@@ -32,7 +33,11 @@ use Illuminate\Support\Facades\Route;
 |    order. Duplicate imports are the usual cause of a merge that git
 |    accepts but PHP refuses to run.
 |
-| 4. Run `php artisan route:list` after EVERY merge. git diff will not tell
+| 4. Register FIXED segments before WILDCARDS. 'notifications/unread-summary'
+|    must come before 'notifications/{notification}/read', or Laravel reads
+|    "unread-summary" as a notification id.
+|
+| 5. Run `php artisan route:list` after EVERY merge. git diff will not tell
 |    you this file is broken. route:list will.
 |
 */
@@ -103,6 +108,41 @@ Route::prefix('v1')->group(function () {
         Route::get(
             'participants/{user}/credentials/completed-studies',
             [CredentialApiController::class, 'completedStudies']
+        );
+
+        // --- Notification centre + Web Push ---
+        // unread-summary is the navbar bell; it runs on every page load.
+        Route::get(
+            'notifications/unread-summary',
+            [NotificationApiController::class, 'unreadSummary']
+        );
+        Route::get(
+            'notifications',
+            [NotificationApiController::class, 'index']
+        );
+        Route::post(
+            'notifications/preferences',
+            [NotificationApiController::class, 'updatePreferences']
+        );
+        Route::post(
+            'notifications/subscribe',
+            [NotificationApiController::class, 'subscribe']
+        );
+        Route::post(
+            'notifications/unsubscribe',
+            [NotificationApiController::class, 'unsubscribe']
+        );
+        Route::post(
+            'notifications/test',
+            [NotificationApiController::class, 'test']
+        );
+        Route::post(
+            'notifications/read-all',
+            [NotificationApiController::class, 'markAllRead']
+        );
+        Route::post(
+            'notifications/{notification}/read',
+            [NotificationApiController::class, 'markRead']
         );
 
         // --- Cross-module: ranks participants for a study's limited seats ---
