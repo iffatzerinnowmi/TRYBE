@@ -6,6 +6,7 @@ use App\Enums\PipelineStage;
 use App\Models\Endorsement;
 use App\Models\StudyParticipation;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\DB;
  * The rule: endorsements from N DIFFERENT researchers earn the badge.
  * Counting distinct researchers is the whole point — one researcher
  * endorsing the same person five times must not unlock anything.
+ *
+ * This class is the single owner of the rule. The Blade page is gone as a
+ * source of data, and EndorsementApiController holds no logic of its own:
+ * it calls the methods below and shapes the answer as JSON.
  */
 class EndorsementService
 {
@@ -25,12 +30,31 @@ class EndorsementService
         return (int) config('platform.endorsements_for_verified_badge');
     }
 
+    /** How many tags one endorsement may carry. Also config, not a literal. */
+    public function maxTags(): int
+    {
+        return (int) config('platform.endorsement_max_tags');
+    }
+
     /** Distinct researchers who have endorsed this participant. */
     public function distinctEndorserCount(User $participant): int
     {
         return Endorsement::where('participant_id', $participant->id)
             ->distinct('researcher_id')
             ->count('researcher_id');
+    }
+
+    /**
+     * Every tag this participant has ever been given, with how many times.
+     * Sorted most-used first — that ordering is the tag cloud on the page.
+     */
+    public function receivedTags(User $participant): Collection
+    {
+        return Endorsement::where('participant_id', $participant->id)
+            ->pluck('tags')
+            ->flatten()
+            ->countBy()
+            ->sortDesc();
     }
 
     /**
@@ -53,6 +77,23 @@ class EndorsementService
                 $alreadyEndorsed->contains($session->participant_id . ':' . $session->study_id)
             )
             ->values();
+    }
+
+    /**
+     * The one session in this researcher's queue that matches the pair the
+     * browser asked to endorse, or null.
+     *
+     * This is the security check behind POST /api/v1/endorsements. Without
+     * it, anyone logged in as a researcher could post any participant id and
+     * award an endorsement for a session that was never theirs.
+     */
+    public function eligibleSession(User $researcher, int $participantId, ?int $studyId): ?StudyParticipation
+    {
+        return $this->pendingFor($researcher)
+            ->first(fn ($session) =>
+                (int) $session->participant_id === $participantId
+                && (int) $session->study_id === (int) $studyId
+            );
     }
 
     /**

@@ -3,221 +3,167 @@
 @section('title', 'Endorsements')
 
 @section('content')
-<div class="wrap pb-20">
+{{--
+    API-DRIVEN PAGE — same pattern as participant/credentials.blade.php.
+
+    There is no Blade data on this page. Every name, tag, number and sentence
+    below arrives as JSON:
+
+        GET  /api/v1/endorsements/pending              -> queue, given, limits
+        GET  /api/v1/participants/{id}/endorsements    -> one person's standing
+        POST /api/v1/endorsements                      -> record one
+
+    Two things are different from the read-only pages you converted before:
+
+    1. This page WRITES. The submit button is a fetch(), not a form. A 422
+       from the API is shown next to the tag picker instead of reloading.
+
+    2. Choosing a different person in the queue re-fetches only the standing
+       panel. Nothing navigates. The old ?participant= link reloaded the
+       whole page; it still works as a deep link, but it is now read once on
+       load and never used again.
+--}}
+<div class="wrap pb-20" id="endorsements-page">
 
     <x-page-header
         eyebrow="Researcher · Endorsements"
         title="Give credit where it's due."
-        subtitle="After a session wraps, vouch for the participant with a couple of quick tags. Once {{ config('platform.endorsements_for_verified_badge') }} different researchers endorse someone, they earn the Verified Participant badge — so your endorsement genuinely counts." />
+        subtitle="After a session wraps, vouch for the participant with a couple of quick tags. Once enough different researchers endorse someone, they earn the Verified Participant badge — so your endorsement genuinely counts." />
 
-    @if (session('status'))
-        <x-alert type="success" class="mb-6">{{ session('status') }}</x-alert>
-    @endif
+    <p class="-mt-2 mb-6 font-mono text-[11.5px] text-steel">
+        Badge threshold: <span id="required-inline">—</span> distinct researchers.
+    </p>
 
-    @error('tags')
-        <x-alert type="error" class="mb-6">{{ $message }}</x-alert>
-    @enderror
+    <div id="page-alert" class="mb-6 hidden rounded-xl px-4 py-3 text-[13px]"></div>
 
     <div class="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
 
         {{-- ================= LEFT ================= --}}
         <div class="space-y-6">
 
-            @if ($selected)
-                <x-panel label="Endorse a participant"
-                         note="You completed a session with this participant."
-                         class="reveal">
+            <x-panel label="Endorse a participant"
+                     note="You completed a session with this participant."
+                     class="reveal">
+
+                <p id="endorse-loading" class="py-3 text-[13.5px] text-dim">
+                    Loading your queue…
+                </p>
+
+                <p id="endorse-empty" class="hidden py-3 text-[13.5px] text-dim">
+                    Nobody is waiting for your endorsement right now. Participants appear
+                    here once you mark one of your sessions completed.
+                </p>
+
+                <div id="endorse-form" class="hidden">
 
                     <div class="mb-5 flex items-center gap-3.5 rounded-xl border border-line bg-surface-soft p-4">
-                        <x-avatar :name="$selected->participant->name" size="lg" />
+                        <span id="selected-avatar"
+                              class="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full
+                                     bg-gradient-to-br from-plum to-steel text-[20px] font-semibold text-white"></span>
                         <div class="min-w-0">
-                            <div class="text-[15px] font-semibold text-ink">
-                                {{ $selected->participant->name }}
-                            </div>
-                            <div class="text-[12.5px] text-dim">
-                                {{ $selected->stage->label() }} ·
-                                “{{ $selected->study->title }}”
-                                @if ($selected->completed_at)
-                                    · {{ $selected->completed_at->diffForHumans() }}
-                                @endif
-                            </div>
+                            <div id="selected-name" class="text-[15px] font-semibold text-ink"></div>
+                            <div id="selected-meta" class="text-[12.5px] text-dim"></div>
                         </div>
                     </div>
 
-                    <form method="POST" action="{{ route('researcher.endorsements.store') }}" id="endorse-form">
-                        @csrf
-                        <input type="hidden" name="participant_id" value="{{ $selected->participant_id }}">
-                        <input type="hidden" name="study_id" value="{{ $selected->study_id }}">
-
-                        <p class="mb-3.5 text-[13px] font-semibold text-dim">
-                            Choose the tags that fit — pick up to {{ $maxTags }}:
-                        </p>
-
-                        {{-- Each tag is a real checkbox, styled as a chip. No
-                             JavaScript is needed for the form to submit. --}}
-                        <div class="flex flex-wrap gap-2.5">
-                            @foreach ($allTags as $tag)
-                                <label class="cursor-pointer">
-                                    <input type="checkbox" name="tags[]" value="{{ $tag }}"
-                                           class="peer sr-only" data-tag>
-                                    <span class="inline-block rounded-full border border-line-hi px-4 py-2
-                                                 text-[13px] text-ink transition
-                                                 peer-checked:border-plum peer-checked:bg-plum
-                                                 peer-checked:text-white hover:border-plum">
-                                        {{ $tag }}
-                                    </span>
-                                </label>
-                            @endforeach
-                        </div>
-
-                        <p id="pick-note" class="mt-3.5 font-mono text-[11.5px] text-steel">
-                            No tags selected yet.
-                        </p>
-
-                        <div class="mt-5 border-t border-line pt-5">
-                            <x-btn type="submit" id="endorse-submit">Submit endorsement</x-btn>
-                        </div>
-                    </form>
-                </x-panel>
-            @else
-                <x-panel label="Endorse a participant" class="reveal">
-                    <p class="py-3 text-[13.5px] text-dim">
-                        Nobody is waiting for your endorsement right now. Participants appear
-                        here once you mark one of your sessions completed.
+                    <p class="mb-3.5 text-[13px] font-semibold text-dim">
+                        Choose the tags that fit — pick up to <span id="max-tags">—</span>:
                     </p>
-                </x-panel>
-            @endif
+
+                    <div id="tag-list" class="flex flex-wrap gap-2.5"></div>
+
+                    <p id="pick-note" class="mt-3.5 font-mono text-[11.5px] text-steel">
+                        No tags selected yet.
+                    </p>
+
+                    <p id="form-error" class="mt-3 hidden rounded-lg bg-danger/10 px-3 py-2 text-[12.5px] text-danger"></p>
+
+                    <div class="mt-5 border-t border-line pt-5">
+                        <button type="button" id="endorse-submit" disabled
+                                class="rounded-xl bg-plum px-5 py-3 text-sm font-semibold text-white transition
+                                       hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50">
+                            Submit endorsement
+                        </button>
+                    </div>
+                </div>
+            </x-panel>
 
             <x-panel label="Also awaiting your endorsement"
                      note="Other participants from your recently completed sessions."
                      class="reveal reveal-d1">
-
-                @forelse ($pending->skip(1)->take(6) as $session)
-                    <div class="flex items-center gap-3.5 border-b border-line py-3.5 last:border-none last:pb-1">
-                        <x-avatar :name="$session->participant->name" size="sm" />
-
-                        <div class="min-w-0 flex-1">
-                            <div class="truncate text-[13.5px] font-semibold text-ink">
-                                {{ $session->participant->name }}
-                            </div>
-                            <div class="truncate font-mono text-[11px] text-steel">
-                                “{{ $session->study->title }}”
-                                @if ($session->completed_at)
-                                    · {{ $session->completed_at->diffForHumans() }}
-                                @endif
-                            </div>
-                        </div>
-
-                        <x-btn variant="soft" size="sm"
-                               href="{{ route('researcher.endorsements', ['participant' => $session->participant_id]) }}">
-                            Endorse
-                        </x-btn>
-                    </div>
-                @empty
-                    <p class="py-3 text-[13.5px] text-dim">Nobody else in the queue.</p>
-                @endforelse
+                <div id="queue-list">
+                    <p class="py-3 text-[13.5px] text-dim">Loading…</p>
+                </div>
             </x-panel>
 
             <x-panel label="Endorsements you've given" class="reveal reveal-d2">
-                @forelse ($given as $endorsement)
-                    <div class="flex flex-wrap items-center gap-3 border-b border-line py-3 last:border-none last:pb-1">
-                        <span class="text-[13.5px] font-semibold text-ink">
-                            {{ $endorsement->participant->name }}
-                        </span>
-
-                        <div class="flex flex-wrap gap-1.5">
-                            @foreach ($endorsement->tags as $tag)
-                                <x-badge tone="plum">{{ $tag }}</x-badge>
-                            @endforeach
-                        </div>
-
-                        <span class="ml-auto font-mono text-[11px] text-steel">
-                            {{ $endorsement->created_at->diffForHumans() }}
-                        </span>
-                    </div>
-                @empty
-                    <p class="py-3 text-[13.5px] text-dim">You haven't endorsed anyone yet.</p>
-                @endforelse
+                <div id="given-list">
+                    <p class="py-3 text-[13.5px] text-dim">Loading…</p>
+                </div>
             </x-panel>
         </div>
 
         {{-- ================= RIGHT: their standing ================= --}}
         <div class="space-y-6">
-            @if ($standing)
-                @php
-                    $r = 66;
-                    $c = 2 * M_PI * $r;
-                    $pct = min(100, $standing['count'] / max(1, $standing['required']) * 100);
-                    $off = $c * (1 - $pct / 100);
-                @endphp
 
-                <div class="reveal reveal-d1 relative overflow-hidden rounded-panel bg-gradient-to-br
-                            from-ink to-plum p-7 text-center text-white
-                            shadow-[0_20px_46px_-22px_rgba(79,58,101,.7)]">
+            {{-- The wrapper carries the id rather than <x-panel>, because a
+                 component may or may not forward stray attributes. --}}
+            <div id="standing-placeholder">
+                <x-panel label="Standing" class="reveal reveal-d1">
+                    <p class="py-3 text-[13.5px] text-dim">
+                        Pick someone from your queue to see how close they are to the badge.
+                    </p>
+                </x-panel>
+            </div>
 
-                    <div class="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full"
-                         style="background:radial-gradient(circle, rgba(223,240,234,.2), transparent 70%);"></div>
+            {{-- Deliberately NOT a .reveal element. Reveal starts at opacity 0
+                 and waits for the element to scroll into view; something that
+                 begins life hidden never triggers the observer and would stay
+                 invisible forever after we un-hide it. --}}
+            <div id="standing-card"
+                 class="relative hidden overflow-hidden rounded-panel bg-gradient-to-br
+                        from-ink to-plum p-7 text-center text-white
+                        shadow-[0_20px_46px_-22px_rgba(79,58,101,.7)]">
 
-                    <div class="relative">
-                        <p class="font-mono text-[10.5px] uppercase tracking-[0.2em] text-steel">
-                            {{ explode(' ', $standing['participant']->name)[0] }}'s standing
-                        </p>
+                <div class="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full"
+                     style="background:radial-gradient(circle, rgba(223,240,234,.2), transparent 70%);"></div>
 
-                        <div class="relative mx-auto mt-5 h-[150px] w-[150px]">
-                            <svg width="150" height="150" class="-rotate-90">
-                                <circle cx="75" cy="75" r="{{ $r }}" fill="none"
-                                        stroke="rgba(255,255,255,.14)" stroke-width="10" />
-                                <circle cx="75" cy="75" r="{{ $r }}" fill="none"
-                                        stroke="#DFF0EA" stroke-width="10" stroke-linecap="round"
-                                        stroke-dasharray="{{ $c }}" stroke-dashoffset="{{ $off }}" />
-                            </svg>
+                <div class="relative">
+                    <p id="standing-owner" class="font-mono text-[10.5px] uppercase tracking-[0.2em] text-steel">
+                        &nbsp;
+                    </p>
 
-                            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-                                <div class="font-display text-[34px] font-semibold leading-none text-white">
-                                    {{ $standing['count'] }}
-                                </div>
-                                <div class="font-mono text-[10.5px] text-steel">
-                                    OF {{ $standing['required'] }}
-                                </div>
-                            </div>
+                    <div class="relative mx-auto mt-5 h-[150px] w-[150px]">
+                        <svg width="150" height="150" class="-rotate-90">
+                            <circle cx="75" cy="75" r="66" fill="none"
+                                    stroke="rgba(255,255,255,.14)" stroke-width="10" />
+                            <circle id="standing-ring" cx="75" cy="75" r="66" fill="none"
+                                    stroke="#DFF0EA" stroke-width="10" stroke-linecap="round"
+                                    stroke-dasharray="414.69" stroke-dashoffset="414.69"
+                                    style="transition: stroke-dashoffset .7s ease-out" />
+                        </svg>
+
+                        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                            <div id="standing-count"
+                                 class="font-display text-[34px] font-semibold leading-none text-white">—</div>
+                            <div id="standing-of" class="font-mono text-[10.5px] text-steel">—</div>
                         </div>
+                    </div>
 
-                        <h3 class="mt-4 font-display text-[18px] font-semibold text-white">
-                            @if ($standing['verified'])
-                                Verified Participant
-                            @elseif ($standing['remaining'] === 1)
-                                1 endorsement to go
-                            @else
-                                {{ $standing['remaining'] }} endorsements to go
-                            @endif
-                        </h3>
+                    <h3 id="standing-headline" class="mt-4 font-display text-[18px] font-semibold text-white">&nbsp;</h3>
 
-                        <span class="mt-3 inline-block rounded-full px-3.5 py-1.5 font-mono
-                                     text-[10.5px] uppercase tracking-wider
-                                     {{ $standing['verified']
-                                        ? 'bg-mint text-ink'
-                                        : 'bg-white/15 text-white/70' }}">
-                            ◆ Verified Participant —
-                            {{ $standing['verified'] ? 'earned' : 'locked' }}
-                        </span>
+                    <span id="standing-badge"
+                          class="mt-3 inline-block rounded-full bg-white/15 px-3.5 py-1.5 font-mono
+                                 text-[10.5px] uppercase tracking-wider text-white/70"></span>
 
-                        @if ($standing['tags']->isNotEmpty())
-                            <div class="mt-5 border-t border-white/15 pt-4">
-                                <p class="font-mono text-[10px] uppercase tracking-[0.16em] text-steel">
-                                    Endorsements received
-                                </p>
-                                <div class="mt-2.5 flex flex-wrap justify-center gap-1.5">
-                                    @foreach ($standing['tags'] as $tag => $times)
-                                        <span class="rounded-full bg-white/15 px-2.5 py-1 text-[11px] text-white">
-                                            {{ $tag }} @if ($times > 1) ×{{ $times }} @endif
-                                        </span>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
+                    <div id="standing-tagwrap" class="mt-5 hidden border-t border-white/15 pt-4">
+                        <p class="font-mono text-[10px] uppercase tracking-[0.16em] text-steel">
+                            Endorsements received
+                        </p>
+                        <div id="standing-tags" class="mt-2.5 flex flex-wrap justify-center gap-1.5"></div>
                     </div>
                 </div>
-            @endif
+            </div>
 
             <x-panel label="How the badge works" class="reveal reveal-d2">
                 <p class="text-[13px] leading-relaxed text-dim">
@@ -238,31 +184,411 @@
 
 @push('scripts')
 <script>
-/* Limits the picker to three tags and updates the note underneath.
-   The server enforces the same limit — this is only a courtesy. */
-(function () {
-    var max = {{ $maxTags }};
-    var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-tag]'));
-    var note = document.getElementById('pick-note');
+document.addEventListener('DOMContentLoaded', function () {
 
-    if (!boxes.length || !note) return;
+    var page = document.getElementById('endorsements-page');
+    if (!page) { return; }
 
-    function update() {
-        var chosen = boxes.filter(function (b) { return b.checked; });
+    /* ------------------------------------------------------------------
+       Endpoints
+    ------------------------------------------------------------------ */
+    var PENDING_URL = '/api/v1/endorsements/pending';
+    var STORE_URL   = '/api/v1/endorsements';
 
-        boxes.forEach(function (b) {
-            b.disabled = !b.checked && chosen.length >= max;
-            b.parentElement.style.opacity = b.disabled ? 0.4 : 1;
-        });
-
-        note.textContent = chosen.length === 0
-            ? 'No tags selected yet.'
-            : chosen.length + ' of ' + max + ' selected: '
-              + chosen.map(function (b) { return b.value; }).join(', ');
+    function standingUrl(participantId) {
+        return '/api/v1/participants/' + participantId + '/endorsements';
     }
 
-    boxes.forEach(function (b) { b.addEventListener('change', update); });
-    update();
-})();
+    var RING_LENGTH = 2 * Math.PI * 66;   // matches r="66" on the svg circle
+
+    /* ------------------------------------------------------------------
+       Everything the page knows lives here. Nothing is read back out of
+       the DOM, so there is one copy of the truth.
+    ------------------------------------------------------------------ */
+    var state = {
+        pending:  [],
+        given:    [],
+        tags:     [],
+        maxTags:  0,
+        required: 0,
+        selected: null,   // one row from state.pending
+        chosen:   [],     // tags ticked right now
+        done:     false   // true once this selection has been endorsed
+    };
+
+    function $(id) { return document.getElementById(id); }
+
+    function esc(text) {
+        return String(text === null || text === undefined ? '' : text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    /* Rebuild of x-badge. Full class strings only — Tailwind cannot find a
+       class name that was assembled by joining pieces together. */
+    function badge(tone, text) {
+        var tones = {
+            ok:      'bg-ok/12 text-ok',
+            plum:    'bg-plum/12 text-plum',
+            neutral: 'bg-steel/18 text-steel'
+        };
+        var cls = tones[tone] || tones.neutral;
+
+        return '<span class="inline-block whitespace-nowrap rounded-full px-2.5 py-1 '
+             + 'font-mono text-[10.5px] tracking-wide ' + cls + '">' + esc(text) + '</span>';
+    }
+
+    /* Rebuild of x-avatar, small size. Initials come from the API. */
+    function avatar(initials) {
+        return '<span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full '
+             + 'bg-gradient-to-br from-plum to-steel text-[12px] font-semibold text-white">'
+             + esc(initials) + '</span>';
+    }
+
+    /* ------------------------------------------------------------------
+       Banners
+    ------------------------------------------------------------------ */
+    function alertBox(message, ok) {
+        var box = $('page-alert');
+        box.className = 'mb-6 rounded-xl px-4 py-3 text-[13px] '
+                      + (ok ? 'bg-ok/10 text-ok' : 'bg-danger/10 text-danger');
+        box.textContent = message;
+    }
+
+    function hideAlert() {
+        $('page-alert').className = 'mb-6 hidden rounded-xl px-4 py-3 text-[13px]';
+    }
+
+    function formError(message) {
+        var box = $('form-error');
+        box.textContent = message;
+        box.classList.remove('hidden');
+    }
+
+    function hideFormError() {
+        $('form-error').classList.add('hidden');
+    }
+
+    /* A 422 carries field-by-field errors; anything else carries a message. */
+    function errorText(error) {
+        if (error && error.errors) {
+            for (var field in error.errors) {
+                if (error.errors[field] && error.errors[field].length) {
+                    return error.errors[field][0];
+                }
+            }
+        }
+        return (error && error.message) ? error.message : 'Something went wrong.';
+    }
+
+    /* ------------------------------------------------------------------
+       The tag picker
+    ------------------------------------------------------------------ */
+    function renderTags() {
+        var atLimit = state.chosen.length >= state.maxTags;
+        var html = '';
+
+        state.tags.forEach(function (tag) {
+            var isChosen = state.chosen.indexOf(tag) > -1;
+            var locked   = state.done || (!isChosen && atLimit);
+
+            var cls = isChosen
+                ? 'border-plum bg-plum text-white'
+                : (locked
+                    ? 'border-line text-steel opacity-40 cursor-not-allowed'
+                    : 'border-line-hi text-ink hover:border-plum cursor-pointer');
+
+            html += '<button type="button" data-tag="' + esc(tag) + '"'
+                  + (locked ? ' disabled' : '')
+                  + ' class="inline-block rounded-full border px-4 py-2 text-[13px] transition '
+                  + cls + '">' + esc(tag) + '</button>';
+        });
+
+        $('tag-list').innerHTML = html;
+
+        $('pick-note').textContent = state.chosen.length === 0
+            ? 'No tags selected yet.'
+            : state.chosen.length + ' of ' + state.maxTags + ' selected: '
+              + state.chosen.join(', ');
+
+        $('endorse-submit').disabled = state.done || state.chosen.length === 0;
+    }
+
+    $('tag-list').addEventListener('click', function (event) {
+        var button = event.target.closest('[data-tag]');
+        if (!button || state.done) { return; }
+
+        var tag = button.dataset.tag;
+        var at  = state.chosen.indexOf(tag);
+
+        if (at > -1) {
+            state.chosen.splice(at, 1);
+        } else if (state.chosen.length < state.maxTags) {
+            state.chosen.push(tag);
+        }
+
+        hideFormError();
+        renderTags();
+    });
+
+    /* ------------------------------------------------------------------
+       The three lists
+    ------------------------------------------------------------------ */
+    function renderSelected() {
+        if (!state.selected) {
+            $('endorse-form').classList.add('hidden');
+            $('endorse-empty').classList.remove('hidden');
+            return;
+        }
+
+        var session = state.selected;
+
+        $('endorse-empty').classList.add('hidden');
+        $('endorse-form').classList.remove('hidden');
+
+        $('selected-avatar').textContent = session.initials;
+        $('selected-name').textContent   = session.participant_name;
+
+        var meta = session.stage_label + ' · “' + session.study_title + '”';
+        if (session.completed_ago) { meta += ' · ' + session.completed_ago; }
+        $('selected-meta').textContent = meta;
+
+        $('endorse-submit').textContent = 'Submit endorsement';
+        renderTags();
+    }
+
+    function renderQueue() {
+        var others = state.pending.filter(function (session) {
+            return !state.selected || session.participation_id !== state.selected.participation_id;
+        }).slice(0, 6);
+
+        if (others.length === 0) {
+            $('queue-list').innerHTML =
+                '<p class="py-3 text-[13.5px] text-dim">Nobody else in the queue.</p>';
+            return;
+        }
+
+        var html = '';
+
+        others.forEach(function (session) {
+            var meta = '“' + esc(session.study_title) + '”';
+            if (session.completed_ago) { meta += ' · ' + esc(session.completed_ago); }
+
+            html +=
+              '<div class="flex items-center gap-3.5 border-b border-line py-3.5 last:border-none last:pb-1">'
+            +   avatar(session.initials)
+            +   '<div class="min-w-0 flex-1">'
+            +     '<div class="truncate text-[13.5px] font-semibold text-ink">'
+            +       esc(session.participant_name)
+            +     '</div>'
+            +     '<div class="truncate font-mono text-[11px] text-steel">' + meta + '</div>'
+            +   '</div>'
+            +   '<button type="button" data-pick="' + session.participation_id + '" '
+            +     'class="rounded-lg bg-plum/10 px-3 py-1.5 text-[12.5px] font-semibold '
+            +     'text-plum transition hover:bg-plum/20">Endorse</button>'
+            + '</div>';
+        });
+
+        $('queue-list').innerHTML = html;
+    }
+
+    $('queue-list').addEventListener('click', function (event) {
+        var button = event.target.closest('[data-pick]');
+        if (!button) { return; }
+
+        select(parseInt(button.dataset.pick, 10));
+    });
+
+    function renderGiven() {
+        if (state.given.length === 0) {
+            $('given-list').innerHTML =
+                '<p class="py-3 text-[13.5px] text-dim">You haven\'t endorsed anyone yet.</p>';
+            return;
+        }
+
+        var html = '';
+
+        state.given.forEach(function (entry) {
+            var chips = '';
+            entry.tags.forEach(function (tag) { chips += badge('plum', tag); });
+
+            html +=
+              '<div class="flex flex-wrap items-center gap-3 border-b border-line py-3 last:border-none last:pb-1">'
+            +   '<span class="text-[13.5px] font-semibold text-ink">'
+            +     esc(entry.participant_name)
+            +   '</span>'
+            +   '<div class="flex flex-wrap gap-1.5">' + chips + '</div>'
+            +   '<span class="ml-auto font-mono text-[11px] text-steel">'
+            +     esc(entry.given_ago)
+            +   '</span>'
+            + '</div>';
+        });
+
+        $('given-list').innerHTML = html;
+    }
+
+    /* ------------------------------------------------------------------
+       The standing panel — its own endpoint, its own render
+    ------------------------------------------------------------------ */
+    function renderStanding(data) {
+        $('standing-placeholder').classList.add('hidden');
+        $('standing-card').classList.remove('hidden');
+
+        $('standing-owner').textContent    = data.first_name + '\u2019s standing';
+        $('standing-count').textContent    = data.count;
+        $('standing-of').textContent       = 'OF ' + data.required;
+        $('standing-headline').textContent = data.headline;
+
+        $('standing-ring').setAttribute(
+            'stroke-dashoffset', RING_LENGTH * (1 - data.progress_percent / 100)
+        );
+
+        var pill = $('standing-badge');
+        pill.textContent = data.badge_text;
+        pill.className = 'mt-3 inline-block rounded-full px-3.5 py-1.5 font-mono '
+                       + 'text-[10.5px] uppercase tracking-wider '
+                       + (data.verified ? 'bg-mint text-ink' : 'bg-white/15 text-white/70');
+
+        if (data.tags.length === 0) {
+            $('standing-tagwrap').classList.add('hidden');
+            return;
+        }
+
+        var chips = '';
+
+        data.tags.forEach(function (entry) {
+            chips += '<span class="rounded-full bg-white/15 px-2.5 py-1 text-[11px] text-white">'
+                   + esc(entry.tag)
+                   + (entry.times > 1 ? ' ×' + entry.times : '')
+                   + '</span>';
+        });
+
+        $('standing-tags').innerHTML = chips;
+        $('standing-tagwrap').classList.remove('hidden');
+    }
+
+    function loadStanding(participantId) {
+        return api.get(standingUrl(participantId))
+            .then(function (response) { renderStanding(response.data); })
+            .catch(function (error) { alertBox(errorText(error), false); });
+    }
+
+    /* ------------------------------------------------------------------
+       Selecting somebody
+    ------------------------------------------------------------------ */
+    function select(participationId) {
+        var found = null;
+
+        state.pending.forEach(function (session) {
+            if (session.participation_id === participationId) { found = session; }
+        });
+
+        state.selected = found || state.pending[0] || null;
+        state.chosen = [];
+        state.done = false;
+
+        hideAlert();
+        hideFormError();
+        renderSelected();
+        renderQueue();
+
+        if (state.selected) {
+            loadStanding(state.selected.participant_id);
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       Loading
+    ------------------------------------------------------------------ */
+    function applyQueue(data) {
+        state.pending  = data.pending;
+        state.given    = data.given;
+        state.tags     = data.available_tags;
+        state.maxTags  = data.max_tags;
+        state.required = data.required;
+
+        $('required-inline').textContent = data.required;
+        $('max-tags').textContent = data.max_tags;
+        $('endorse-loading').classList.add('hidden');
+    }
+
+    /* Deep link: /researcher/endorsements?participant=7 still works. It is
+       read once here and never again — after this, picking someone changes
+       nothing in the address bar and reloads nothing. */
+    function requestedParticipantId() {
+        var raw = new URLSearchParams(window.location.search).get('participant');
+        return raw ? parseInt(raw, 10) : null;
+    }
+
+    api.get(PENDING_URL)
+        .then(function (response) {
+            applyQueue(response.data);
+
+            var wanted = requestedParticipantId();
+            var first  = state.pending[0] || null;
+
+            if (wanted) {
+                state.pending.forEach(function (session) {
+                    if (session.participant_id === wanted) { first = session; }
+                });
+            }
+
+            select(first ? first.participation_id : -1);
+            renderGiven();
+        })
+        .catch(function (error) {
+            $('endorse-loading').textContent = 'Could not load your queue.';
+            $('queue-list').innerHTML = '';
+            $('given-list').innerHTML = '';
+            alertBox(errorText(error), false);
+        });
+
+    /* ------------------------------------------------------------------
+       Submitting — the only write on this page
+    ------------------------------------------------------------------ */
+    $('endorse-submit').addEventListener('click', function () {
+        if (!state.selected || state.chosen.length === 0 || state.done) { return; }
+
+        var button = this;
+
+        button.disabled = true;
+        button.textContent = 'Submitting…';
+        hideAlert();
+        hideFormError();
+
+        api.post(STORE_URL, {
+            participant_id: state.selected.participant_id,
+            study_id:       state.selected.study_id,
+            tags:           state.chosen
+        })
+        .then(function (response) {
+            state.done = true;
+
+            renderStanding(response.data);
+            alertBox(response.message, true);
+
+            button.textContent = 'Endorsed ✓';
+            button.disabled = true;
+            renderTags();
+
+            // Refresh the queue and the given list so the session that was
+            // just endorsed disappears. The form above stays on the person
+            // you endorsed, so you can watch the ring you just moved.
+            return api.get(PENDING_URL).then(function (fresh) {
+                applyQueue(fresh.data);
+                renderQueue();
+                renderGiven();
+            });
+        })
+        .catch(function (error) {
+            formError(errorText(error));
+            button.textContent = 'Submit endorsement';
+            button.disabled = state.chosen.length === 0;
+        });
+    });
+});
 </script>
 @endpush
