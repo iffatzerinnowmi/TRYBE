@@ -7,3 +7,7 @@ import './candidates';           // suggested-candidates panel (dashboard + stud
 import './participant-profile';  // the candidate profile page
 import './study-match';          // study page: criteria + "your match" + respond
 import './invitations';          // the participant's invitations page
+
+/* Member 4 — Referral system. */
+import './referrals';            // Refer a Friend (participant + researcher)
+import './referral-banner';      // "you were invited by X" on the signup page

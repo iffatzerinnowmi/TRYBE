@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Contracts\PipelineWriter;
+use App\Models\User;
+use App\Observers\ReferralAttributionObserver;
 use App\Services\Pipeline\UnavailablePipelineWriter;
 use Illuminate\Support\ServiceProvider;
 
@@ -47,6 +49,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        /*
+        |----------------------------------------------------------------------
+        | Referral attribution  (Member 4)
+        |----------------------------------------------------------------------
+        |
+        | Attributes a new signup to whoever referred them, by reading the
+        | cookie CaptureReferralCode dropped.
+        |
+        | An observer rather than a hidden form field because
+        | AuthController::signup() and POST /api/v1/auth/register are two
+        | separate code paths that both create users, and because that
+        | controller's field names are frozen.
+        |
+        | It no-ops when there is no referral cookie, so seeders, artisan
+        | commands and ordinary signups are unaffected.
+        */
+        User::observe(ReferralAttributionObserver::class);
     }
 }

@@ -12,6 +12,7 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\ParticipantDashboardController;
 use App\Http\Controllers\ParticipantProfileController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\ReliabilityController;
 use App\Http\Controllers\ResearcherDashboardController;
 use App\Http\Controllers\ResearcherParticipantController;
@@ -153,6 +154,13 @@ Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('pa
     Route::get('/invitations', [InvitationController::class, 'index'])
         ->name('invitations');
 
+    /* ---- FEATURE — Referral system (Member 4, API-DRIVEN) ----
+       One GET. The link, progress, referred users and rewards all come from
+       /api/v1/referrals/me. There is no web POST: generating a code is
+       POST /api/v1/referrals/me/code. */
+    Route::get('/referrals', [ReferralController::class, 'index'])
+        ->name('referrals');
+
     /* ---- Profile builder ---- */
     Route::get('/profile',             [ParticipantProfileController::class, 'edit'])->name('profile');
     Route::patch('/profile',           [ParticipantProfileController::class, 'update'])->name('profile.update');
@@ -179,6 +187,13 @@ Route::middleware(['auth', 'role:researcher'])->prefix('researcher')->name('rese
        POST /api/v1/studies/{study}/invitations. */
     Route::get('/studies/{study}/participants/{participant}', [ResearcherParticipantController::class, 'show'])
         ->name('studies.participants.show');
+
+    /* ---- FEATURE — Referral rewards (Member 4, API-DRIVEN) ----
+       Free paid-post credits earned by referring other researchers.
+       Registered before /studies/{study}/... is irrelevant here — no
+       wildcard sibling shares this prefix. */
+    Route::get('/referrals', [ReferralController::class, 'researcher'])
+        ->name('referrals');
 
     /* ---- Profile builder ---- */
     Route::get('/profile',             [ResearcherProfileController::class, 'edit'])->name('profile');

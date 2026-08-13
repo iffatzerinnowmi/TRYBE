@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\CredentialApiController;
 use App\Http\Controllers\Api\V1\MatchedStudyApiController;
 use App\Http\Controllers\Api\V1\NotificationApiController;
 use App\Http\Controllers\Api\V1\PlatformApiController;
+use App\Http\Controllers\Api\V1\ReferralApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
 use App\Http\Controllers\Api\V1\StudyInvitationApiController;
 use Illuminate\Support\Facades\Route;
@@ -62,6 +63,14 @@ Route::prefix('v1')->group(function () {
     // Counts and thresholds for the landing and login pages, which are
     // seen by people who are not logged in. No personal data.
     Route::get('platform/stats', [PlatformApiController::class, 'stats']);
+
+    /* MEMBER 4 — referral link check.
+       Public because a GUEST standing on the signup page has to call it to
+       see "You were invited by Ayesha". It returns one shortened name and
+       nothing else: no email, no id, no counts. Referral codes are guessable
+       by design, so widening this response is a privacy decision, not a
+       convenience one. */
+    Route::get('referrals/validate/{code}', [ReferralApiController::class, 'validateCode']);
 
 
     /*
@@ -229,6 +238,20 @@ Route::prefix('v1')->group(function () {
             'participants/me/matched-studies',
             [MatchedStudyApiController::class, 'index']
         );
+
+        /* ---- Referral system ----
+           Everything is scoped to /me. A referral dashboard is only ever
+           your own, so there is no {user} to authorise — which removes a
+           whole class of authorisation bug rather than guarding for it. */
+        Route::get('referrals/me', [ReferralApiController::class, 'me']);
+        Route::post('referrals/me/code', [ReferralApiController::class, 'storeCode']);
+        Route::get('referrals/me/referred-users', [ReferralApiController::class, 'referredUsers']);
+        Route::get('referrals/me/rewards', [ReferralApiController::class, 'rewards']);
+        Route::post('referrals/me/sync', [ReferralApiController::class, 'sync']);
+
+        /* Researcher reward ledger. Earns today; spending it needs Member
+           3's tier system, which the payload says out loud. */
+        Route::get('researchers/me/post-credits', [ReferralApiController::class, 'postCredits']);
 
     });
 });

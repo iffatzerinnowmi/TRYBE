@@ -88,4 +88,37 @@ return [
             'require_verified_researcher'             => env('TRYBE_MATCH_GUARD_VERIFIED', false),
         ],
     ],
+
+    /* ---------------- Section 7 (Member 4) — referral system --------------
+     | An examiner asking "make it 5 referrals instead of 3" must be a
+     | one-line edit here with no logic touched.
+     */
+    'referrals' => [
+        // How many referred users must qualify before a reward fires.
+        'required_to_unlock' => env('TRYBE_REFERRALS_REQUIRED', 3),
+
+        // What makes a referred user "qualified". Expressed as a COUNT, not
+        // a boolean, so the rule is a number rather than a bare > 0 in code.
+        // Participants qualify by completing studies; researchers by posting
+        // them, since researchers do not complete studies.
+        'studies_to_qualify' => env('TRYBE_REFERRAL_QUALIFY_STUDIES', 1),
+
+        // Free paid-post credits per qualifying researcher referral.
+        'post_credits_per_referral' => env('TRYBE_REFERRAL_POST_CREDITS', 1),
+
+        // Whether a participant can be bumped more than once (3 referrals ->
+        // +1 tier, 6 -> +1 more). The brief only promises the first bump;
+        // leaving this on keeps the ladder consistent.
+        'repeatable' => env('TRYBE_REFERRAL_REPEATABLE', true),
+
+        // Unambiguous alphabet: no I, 1, O or 0, because people retype these
+        // from screenshots.
+        'code_length'         => 8,
+        'code_alphabet'       => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
+        'code_generate_tries' => 20,
+
+        // How long a click on a referral link stays attributable if the
+        // person does not sign up straight away.
+        'attribution_days' => env('TRYBE_REFERRAL_ATTRIBUTION_DAYS', 30),
+    ],
 ];

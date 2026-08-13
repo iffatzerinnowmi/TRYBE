@@ -244,6 +244,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             TopicSeeder::class,           // Member 4 — shared topic vocabulary
             MatchingTopicsSeeder::class,  // Member 4 — tags, criteria, invitations
+            ReferralSeeder::class,        // Member 4 — referrals, rewards, credits
         ]);
 
         $this->command->info('TRYBE dummy data seeded: '.User::count().' users, '.Study::count().' studies.');

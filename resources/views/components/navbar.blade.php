@@ -31,6 +31,9 @@
             'Profile'     => '/participant/profile',
             'Reliability' => '/participant/reliability',
             'Credentials' => '/participant/credentials',
+            // Member 4 — study invitations and Refer a Friend.
+            'Invites'     => '/participant/invitations',
+            'Refer'       => '/participant/referrals',
             'Alerts'      => '/notifications',
         ],
         'researcher' => [
@@ -38,6 +41,8 @@
             'Profile'      => '/researcher/profile',
             'Verification' => '/verification',
             'Endorsements' => '/researcher/endorsements',
+            // Member 4 — referral rewards and free post credits.
+            'Refer'        => '/researcher/referrals',
             'Alerts'       => '/notifications',
         ],
         'admin' => [

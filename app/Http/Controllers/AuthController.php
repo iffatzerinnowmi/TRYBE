@@ -73,7 +73,16 @@ class AuthController extends Controller
         ]);
     }
 
-    /** Create the account, its profile row, and any verification request. */
+    /**
+     * Create the account, its profile row, and any verification request.
+     *
+     * HEADS-UP (Member 4, referral system): creating a User here also fires
+     * App\Observers\ReferralAttributionObserver, which may write a row to
+     * `referrals` if the visitor arrived through a ?ref= link. Nothing in
+     * this method changes and no field name is added — the observer reads a
+     * cookie, not the form — but if a signup ever does something unexpected,
+     * that file is the other place to look.
+     */
     public function signup(Request $request)
     {
         $role = $this->safeRole($request->input('role'));
