@@ -19,4 +19,73 @@ return [
         'completion' => env('TRYBE_WEIGHT_COMPLETION', 40),
         'reviews'    => env('TRYBE_WEIGHT_REVIEWS', 40),
     ],
+
+    /* ---------------- Section 7 (Member 4) — Smart Participant Matching ----
+     | The eight weights are percentages and MUST add up to 100, so
+     | match_score is a real percentage and the eight contributions reconcile
+     | with the total — the same way the reliability payload does.
+     |
+     | StudyMatchingService reads these and the API returns them, so changing
+     | a weight here changes the maths and the on-screen explanation together.
+     |
+     | The first five trace to the criteria the assignment brief names
+     | ("age range, location, skills, availability, credential level").
+     | Topics come from the API-driven feedback. Reliability and standing are
+     | cross-module reads of Member 1's data.
+     |
+     | Set any weight to 0 to switch a factor off — the remaining weights are
+     | renormalised, so the total is still 100.
+     */
+    'matching' => [
+        'weights' => [
+            'topics'       => env('TRYBE_MATCH_W_TOPICS', 25),
+            'age'          => env('TRYBE_MATCH_W_AGE', 15),
+            'location'     => env('TRYBE_MATCH_W_LOCATION', 15),
+            'skills'       => env('TRYBE_MATCH_W_SKILLS', 15),
+            'credential'   => env('TRYBE_MATCH_W_CREDENTIAL', 10),
+            'reliability'  => env('TRYBE_MATCH_W_RELIABILITY', 10),
+            'availability' => env('TRYBE_MATCH_W_AVAILABILITY', 5),
+            'standing'     => env('TRYBE_MATCH_W_STANDING', 5),
+        ],
+
+        /* Within the topics factor: how much comes from the topics of studies
+         | the participant has actually COMPLETED, versus topics they merely
+         | ticked a box for. A completed study is evidence; a declared
+         | interest is a claim. Evidence is weighted higher. */
+        'topic_history_share' => env('TRYBE_MATCH_TOPIC_HISTORY_SHARE', 60),
+
+        'strong_threshold' => env('TRYBE_MATCH_STRONG', 70),
+        'candidates_limit' => env('TRYBE_MATCH_LIMIT', 5),
+
+        /* Phase 1 of the candidate query narrows to this many rows, ordered by
+         | reliability, before exact scoring happens in PHP. Topic-overlap
+         | maths is not cheaply expressible in SQL, so the work is bounded
+         | here instead. */
+        'shortlist_size' => env('TRYBE_MATCH_SHORTLIST', 100),
+
+        /* How far outside the stated age band / credential floor the hard SQL
+         | filter still admits a candidate. The scorer tapers rather than
+         | cliff-edging, so filtering at the exact boundary would throw away
+         | people the scorer would have rated highly. */
+        'age_filter_slack'    => env('TRYBE_MATCH_AGE_SLACK', 5),
+        'credential_slack'    => env('TRYBE_MATCH_CREDENTIAL_SLACK', 1),
+
+        /* Used only when a study has no study_match_criteria row. */
+        'defaults' => [
+            'age_min'           => 18,
+            'age_max'           => 40,
+            'location'          => null,
+            'credential_min'    => \App\Enums\CredentialLevel::NONE->value,
+            'required_skills'   => [],
+            'availability_days' => 30,
+        ],
+
+        /* Guards on who may be invited. Each reads another member's data, so
+         | each can be switched off until that member's feature ships. */
+        'guards' => [
+            'block_paid_study_for_locked_participant' => env('TRYBE_MATCH_GUARD_PAID', true),
+            'block_invite_when_auction_mode'          => env('TRYBE_MATCH_GUARD_AUCTION', true),
+            'require_verified_researcher'             => env('TRYBE_MATCH_GUARD_VERIFIED', false),
+        ],
+    ],
 ];

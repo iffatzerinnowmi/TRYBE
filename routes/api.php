@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthApiController;
+use App\Http\Controllers\Api\V1\CandidateApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
+use App\Http\Controllers\Api\V1\MatchedStudyApiController;
 use App\Http\Controllers\Api\V1\NotificationApiController;
 use App\Http\Controllers\Api\V1\PlatformApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
+use App\Http\Controllers\Api\V1\StudyInvitationApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -170,10 +173,62 @@ Route::prefix('v1')->group(function () {
 
         // ==================================================================
         // MEMBER 4 — Sarah
-        // competitions · buddy matching · groups · referral · feed
+        // smart matching · invitations · competitions · buddies · referral · feed
         // ==================================================================
 
-        // (add your routes here)
+        /* ---- Smart Participant Matching ----
+           Ranked candidates for a study, and the criteria that produced them.
+           The researcher dashboard panel renders entirely from these. */
+        Route::get(
+            'studies/{study}/candidates',
+            [CandidateApiController::class, 'index']
+        );
+        Route::get(
+            'studies/{study}/candidates/{user}',
+            [CandidateApiController::class, 'show']
+        );
+        /* The shared topic vocabulary, so the criteria editor offers real
+           options rather than a free-text box. */
+        Route::get('topics', [CandidateApiController::class, 'topics']);
+
+        Route::get(
+            'studies/{study}/match-criteria',
+            [CandidateApiController::class, 'criteria']
+        );
+        /* PUT is the honest verb — the criteria row is replaced wholesale,
+           so sending the same body twice gives the same result. PATCH is
+           accepted on the same route because the shared api.js helper only
+           exposes get/post/patch/delete, and forking that helper is against
+           team rules. One route, two verbs, one handler. */
+        Route::match(
+            ['put', 'patch'],
+            'studies/{study}/match-criteria',
+            [CandidateApiController::class, 'updateCriteria']
+        );
+
+        /* ---- Invitations — nested under a study to create and list ---- */
+        Route::get(
+            'studies/{study}/invitations',
+            [StudyInvitationApiController::class, 'index']
+        );
+        Route::post(
+            'studies/{study}/invitations',
+            [StudyInvitationApiController::class, 'store']
+        );
+
+        /* ---- Invitations — top-level to read and respond ----
+           The id is globally unique, and a participant reading their own
+           invitations has no reason to know the study id first. */
+        Route::get('invitations', [StudyInvitationApiController::class, 'mine']);
+        Route::get('invitations/{invitation}', [StudyInvitationApiController::class, 'show']);
+        Route::patch('invitations/{invitation}', [StudyInvitationApiController::class, 'update']);
+        Route::delete('invitations/{invitation}', [StudyInvitationApiController::class, 'destroy']);
+
+        /* ---- The participant's side of matching ---- */
+        Route::get(
+            'participants/me/matched-studies',
+            [MatchedStudyApiController::class, 'index']
+        );
 
     });
 });

@@ -4,40 +4,48 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Models\Study;
-use App\Models\StudyParticipation;
 use App\Models\User;
-use App\Services\StudyMatchingService;
 
+/**
+ * FEATURE — Smart Participant Matching: the candidate profile page
+ *
+ * API-DRIVEN PAGE
+ * ---------------
+ * Notice what this controller does NOT do: it passes no data to the view.
+ * No $profile, no $match, no $participations, no $invited. There is no
+ * second argument to view() beyond the two route models the page needs to
+ * know WHICH candidate and WHICH study to ask the API about.
+ *
+ * Everything on the page arrives as JSON from:
+ *
+ *     GET  /api/v1/studies/{study}/candidates/{user}
+ *     POST /api/v1/studies/{study}/invitations
+ *
+ * The checks below stay here because they decide whether the PAGE exists at
+ * all — a researcher opening someone else's study, or a participant id that
+ * is not a participant. That is not data.
+ */
 class ResearcherParticipantController extends Controller
 {
-    public function show(Study $study, User $participant, StudyMatchingService $matching)
+    public function show(Study $study, User $participant)
     {
-        $researcher = auth()->user();
+        abort_unless($study->researcher_id === auth()->id(), 403);
 
-        abort_unless($researcher->id === $study->researcher_id, 403);
-        abort_unless($participant->role === UserRole::PARTICIPANT, 422, 'Only participant accounts can be viewed here.');
+        abort_unless(
+            $participant->role === UserRole::PARTICIPANT,
+            404,
+            'That user is not a participant.'
+        );
 
-        $profile = $participant->participantProfile;
-        abort_if(! $profile, 404, 'Participant profile not found.');
-
-        $criteria = $matching->criteriaForStudy($study);
-        $match = $matching->assessUserForStudy($participant, $criteria);
-        $participations = StudyParticipation::query()
-            ->with('study')
-            ->where('participant_id', $participant->id)
-            ->latest('updated_at')
-            ->take(8)
-            ->get();
+        abort_if(
+            ! $participant->participantProfile,
+            404,
+            'No participant profile found for that user.'
+        );
 
         return view('researcher.participants.show', [
-            'user' => $researcher,
-            'study' => $study->load('researcher'),
+            'study'       => $study,
             'participant' => $participant,
-            'profile' => $profile,
-            'criteriaSummary' => $matching->criteriaSummary($criteria),
-            'match' => $match,
-            'participations' => $participations,
-            'invited' => $matching->hasInvitation($participant, $study),
         ]);
     }
 }

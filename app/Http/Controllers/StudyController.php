@@ -8,8 +8,6 @@ use App\Enums\StudyStatus;
 use App\Http\Requests\StoreStudyRequest;
 use App\Models\Study;
 use App\Models\StudyParticipation;
-use App\Models\UserNotification;
-use App\Services\StudyMatchingService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  */
 class StudyController extends Controller
 {
-    public function index(StudyMatchingService $matching)
+    public function index()
     {
         $user = auth()->user();
 
@@ -33,17 +31,9 @@ class StudyController extends Controller
             ->latest('id')
             ->get();
 
-        if ($user?->participantProfile) {
-            $studies = $studies->map(function (Study $study) use ($matching, $user) {
-                $score = $matching->assessUserForStudy($user, $matching->criteriaForStudy($study));
-
-                $study->setAttribute('match_score', $score['score']);
-                $study->setAttribute('match_reasons', $score['reasons']);
-                $study->setAttribute('strong_match', $score['score'] >= $matching->strongThreshold());
-
-                return $study;
-            });
-        }
+        /* ---- Match scores per study (Member 4) used to be attached here,
+           one assessUserForStudy() call per listing. The participant's own
+           ranked list is now GET /api/v1/participants/me/matched-studies. ---- */
 
         return view('studies.index', [
             'user' => $user,
@@ -114,34 +104,25 @@ class StudyController extends Controller
         );
     }
 
-    public function show(Study $study, StudyMatchingService $matching)
+    public function show(Study $study)
     {
         $user = auth()->user();
         $study->load('researcher');
 
         abort_if($user->role?->value === 'researcher' && $study->researcher_id !== $user->id, 403);
 
-        $criteria = $matching->criteriaForStudy($study);
+        /* ---- Matching, invitations and the suggested-participant list
+           (Member 4) used to be built here. They are now API-driven:
 
-        $match = null;
-        $invite = null;
-        $participation = null;
+               GET /api/v1/studies/{study}/candidates
+               GET /api/v1/studies/{study}/match-criteria
+               GET /api/v1/invitations
+
+           so this controller passes none of it. The invite/accept/decline
+           POST forms that lived on this page are gone too — responding is
+           PATCH /api/v1/invitations/{invitation}. ---- */
+
         $currentParticipants = collect();
-        $matchedParticipants = collect();
-
-        if ($user->role?->value === 'participant') {
-            $match = $matching->assessUserForStudy($user, $criteria);
-            $invite = UserNotification::query()
-                ->where('user_id', $user->id)
-                ->where('type', 'studies')
-                ->where('title', $matching->invitationTitle($study))
-                ->first();
-
-            $participation = StudyParticipation::query()
-                ->where('study_id', $study->id)
-                ->where('participant_id', $user->id)
-                ->first();
-        }
 
         if ($user->role?->value === 'researcher' && $study->researcher_id === $user->id) {
             $currentParticipants = StudyParticipation::query()
@@ -150,24 +131,12 @@ class StudyController extends Controller
                 ->where('stage', PipelineStage::CONFIRMED->value)
                 ->latest('updated_at')
                 ->get();
-
-            $matchedParticipants = $matching->rankParticipantsForStudy($study, 5)->map(function ($profile) use ($study, $matching) {
-                $profile->setAttribute('invited', $matching->hasInvitation($profile->user, $study));
-
-                return $profile;
-            });
         }
 
         return view('studies.show', [
             'user' => $user,
             'study' => $study,
-            'criteria' => $criteria,
-            'criteriaSummary' => $matching->criteriaSummary($criteria),
-            'match' => $match,
-            'invite' => $invite,
-            'participation' => $participation,
             'currentParticipants' => $currentParticipants,
-            'matchedParticipants' => $matchedParticipants,
         ]);
     }
 

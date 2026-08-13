@@ -2,9 +2,10 @@
 
 namespace App\Providers;
 
+use App\Contracts\PipelineWriter;
+use App\Services\Pipeline\UnavailablePipelineWriter;
 use Illuminate\Support\ServiceProvider;
 
-use Illuminate\Support\Facades\View;
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -12,7 +13,33 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        /*
+        |----------------------------------------------------------------------
+        | Pipeline hand-off  (Member 4 -> Member 2)
+        |----------------------------------------------------------------------
+        |
+        | When a participant accepts an invitation they should land in the
+        | researcher's pipeline as CONFIRMED. study_participations.stage is
+        | Member 2's column, and the team rule is one writer per column, so
+        | the invitation feature asks for it through an interface instead of
+        | writing it.
+        |
+        | Member 2: create App\Services\PipelineService implementing
+        | App\Contracts\PipelineWriter and this binding picks it up on its
+        | own. Nothing here needs editing.
+        |
+        | Until then the fallback records nothing and logs a warning, so the
+        | gap is visible rather than silently duplicated.
+        */
+        $this->app->bind(PipelineWriter::class, function ($app) {
+            $pipelineService = 'App\\Services\\PipelineService';
+
+            if (class_exists($pipelineService) && is_a($pipelineService, PipelineWriter::class, true)) {
+                return $app->make($pipelineService);
+            }
+
+            return new UnavailablePipelineWriter();
+        });
     }
 
     /**
@@ -20,6 +47,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-       
+        //
     }
 }

@@ -58,50 +58,28 @@
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-line bg-surface-soft p-4">
+                {{-- Matching criteria (Member 4). API-driven: filled by
+                     resources/js/study-match.js from the matching endpoints. --}}
+                <div class="rounded-xl border border-line bg-surface-soft p-4"
+                     data-study-criteria data-study-id="{{ $study->id }}">
                     <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Matching criteria</div>
-                    <p class="mt-2 text-[13.5px] leading-relaxed text-ink">{{ $criteriaSummary }}</p>
+                    <p class="mt-2 text-[13.5px] leading-relaxed text-ink" data-criteria-summary>Loading…</p>
                 </div>
             </div>
         </x-panel>
 
         <div class="space-y-6">
             @if ($user->role?->value === 'participant')
+                {{-- Your match (Member 4). API-driven: score, reasons and the
+                     invitation state all come from the matching endpoints.
+                     Accept / decline are PATCH /api/v1/invitations/{id}, so the
+                     two web POST forms that were here are gone. --}}
                 <x-panel label="Your match" class="reveal reveal-d1">
-                    <div class="space-y-3 text-[13.5px] text-dim">
-                        <p>Your score for this study is <b class="text-ink">{{ $match['score'] }}/100</b>.</p>
-
-                        <div class="flex flex-wrap gap-2">
-                            @forelse ($match['reasons'] as $reason)
-                                <x-badge tone="plum">{{ $reason }}</x-badge>
-                            @empty
-                                <x-badge tone="neutral">No match reasons available</x-badge>
-                            @endforelse
-                        </div>
-
-                        @if ($invite)
-                            <x-alert type="info" class="mt-2">You have been invited to this study.</x-alert>
-
-                            @if ($participation?->stage?->value === 'confirmed')
-                                <x-alert type="success" class="mt-2">You already accepted this invite.</x-alert>
-                            @elseif ($participation?->stage?->value === 'rejected')
-                                <x-alert type="warning" class="mt-2">You previously declined this invite.</x-alert>
-                            @else
-                                <div class="mt-2 flex flex-wrap gap-3">
-                                    <form method="POST" action="{{ route('participant.studies.invitation.accept', $study) }}">
-                                        @csrf
-                                        <x-btn type="submit">Accept invite</x-btn>
-                                    </form>
-
-                                    <form method="POST" action="{{ route('participant.studies.invitation.decline', $study) }}">
-                                        @csrf
-                                        <x-btn type="submit" variant="ghost">Decline</x-btn>
-                                    </form>
-                                </div>
-                            @endif
-                        @else
-                            <p class="mt-2 text-[12.5px] text-dim">This study is visible to you, but you have not been invited yet.</p>
-                        @endif
+                    <div class="space-y-3 text-[13.5px] text-dim"
+                         data-study-match data-study-id="{{ $study->id }}">
+                        <p data-match-summary>Loading your match…</p>
+                        <div class="flex flex-wrap gap-2" data-match-reasons></div>
+                        <div data-invitation-block></div>
                     </div>
                 </x-panel>
             @else
@@ -128,37 +106,10 @@
                     </div>
                 </x-panel>
 
+                {{-- Smart Participant Matching (Member 4) — the same
+                     API-driven partial the researcher dashboard uses. --}}
                 <x-panel label="Suggested participants" class="reveal reveal-d1">
-                    <div class="space-y-3">
-                        @forelse ($matchedParticipants as $match)
-                            <div class="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">
-                                <x-avatar :name="$match->user->name" size="sm" />
-                                <div class="min-w-0 flex-1">
-                                    <div class="truncate text-[13.5px] font-semibold text-ink">{{ $match->user->name }}</div>
-                                    <div class="font-mono text-[11px] text-steel">
-                                        {{ $match->age }} years · {{ $match->user->location ?? 'Location not set' }} ·
-                                        {{ $match->credential_level instanceof \App\Enums\CredentialLevel ? $match->credential_level->label() : ucfirst((string) $match->credential_level) }}
-                                    </div>
-                                    <div class="mt-1 text-[11.5px] text-dim">{{ implode(' · ', $match->match_reasons ?? []) }}</div>
-                                </div>
-
-                                <div class="flex items-center gap-2">
-                                    <x-badge tone="{{ $match->strong_match ? 'expert' : 'gold' }}">{{ $match->match_score }}%</x-badge>
-                                    <x-btn href="{{ route('researcher.studies.participants.show', [$study, $match->user]) }}" variant="ghost" size="sm">View profile</x-btn>
-                                    @if ($match->invited)
-                                        <x-badge tone="neutral">Invited</x-badge>
-                                    @else
-                                        <form method="POST" action="{{ route('researcher.studies.invite', [$study, $match->user]) }}">
-                                            @csrf
-                                            <x-btn type="submit" variant="soft" size="sm">Invite</x-btn>
-                                        </form>
-                                    @endif
-                                </div>
-                            </div>
-                        @empty
-                            <p class="text-[13.5px] text-dim">No matched participants found yet.</p>
-                        @endforelse
-                    </div>
+                    @include('researcher.partials.candidates-panel', ['study' => $study])
                 </x-panel>
             @endif
         </div>
