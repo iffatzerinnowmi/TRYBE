@@ -25,4 +25,5 @@ Thumbs.db
 laravel
 colored_changes.diff
 tests/
-
+docs/
+*_routes.txt

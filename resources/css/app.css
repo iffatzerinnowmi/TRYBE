@@ -9,6 +9,13 @@
 /* Tell Tailwind to also scan Blade files for class names. */
 @source "../views";
 
+/* API-driven pages build their markup in JavaScript, so those files contain
+   class names too. Without this, every class that only ever appears inside
+   resources/js is stripped from the build and the styling silently vanishes.
+   (This is also why class names in those files are written out in full and
+   never assembled by joining strings.) */
+@source "../js";
+
 /* --------------------------------------------------------------------------
    DESIGN TOKENS
    Anything you write inside @theme becomes a real Tailwind class.

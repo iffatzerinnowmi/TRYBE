@@ -85,6 +85,15 @@
         @endforeach
     </div>
 
+    {{-- Referral system (Member 4). Filled by resources/js/referral-banner.js
+         from the PUBLIC endpoint /api/v1/referrals/validate/{code} when the
+         visitor arrived through a ?ref= link.
+
+         READ-ONLY. It adds no input and changes no field name, so the frozen
+         field list in AuthController is untouched — the referral is
+         attributed from a cookie, not from this form. --}}
+    <div id="referral-banner" class="hidden"></div>
+
     {{-- enctype is required because two roles upload a file. --}}
     <form method="POST" action="/signup" enctype="multipart/form-data" class="space-y-5">
         @csrf

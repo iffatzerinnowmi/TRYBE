@@ -7,7 +7,6 @@ use App\Enums\StudyStatus;
 use App\Models\Follow;
 use App\Models\Study;
 use App\Models\StudyParticipation;
-use App\Services\StudyMatchingService;
 
 /**
  * The researcher's home screen: their listings, their pipeline, and whether
@@ -15,7 +14,7 @@ use App\Services\StudyMatchingService;
  */
 class ResearcherDashboardController extends Controller
 {
-    public function index(StudyMatchingService $matching)
+    public function index()
     {
         $user = auth()->user();
         $profile = $user->researcherProfile;
@@ -52,19 +51,13 @@ class ResearcherDashboardController extends Controller
             ->take(5)
             ->get();
 
-        $studyMatches = $studies->mapWithKeys(function (Study $study) use ($matching) {
-            $matches = $matching->rankParticipantsForStudy($study, 3)->map(function ($match) use ($study, $matching) {
-                $match->setAttribute('invited', $matching->hasInvitation($match->user, $study));
-
-                return $match;
-            });
-
-            return [$study->id => $matches];
-        });
-
-        $studyCriteria = $studies->mapWithKeys(function (Study $study) use ($matching) {
-            return [$study->id => $matching->criteriaSummary($matching->criteriaForStudy($study))];
-        });
+        /* ---- Suggested participants (Member 4 — Smart Participant Matching)
+           used to be built here: one rankParticipantsForStudy() call per
+           study, each running one hasInvitation() query per candidate. It is
+           now API-driven. The panel partial ships empty and fetches
+           GET /api/v1/studies/{study}/candidates, so this controller passes
+           no matching data at all — and the dashboard no longer runs dozens
+           of queries on load. ---- */
 
         /* ---- the colour and label for each pipeline stage ---- */
         $stageStyles = [
@@ -85,9 +78,7 @@ class ResearcherDashboardController extends Controller
             'stageCounts',
             'stats',
             'activity',
-            'stageStyles',
-            'studyMatches',
-            'studyCriteria'
+            'stageStyles'
         ));
     }
 }

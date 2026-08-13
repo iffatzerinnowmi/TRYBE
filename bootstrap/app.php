@@ -41,6 +41,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
+
+        /*
+        |------------------------------------------------------------------
+        | Referral link capture  (Member 4)
+        |------------------------------------------------------------------
+        |
+        | Watches every web request for ?ref=CODE and remembers it in an
+        | encrypted cookie, so the attribution survives someone opening the
+        | link on Monday and signing up on Wednesday.
+        |
+        | It returns immediately when the parameter is absent, which is
+        | almost every request. The attribution itself happens in
+        | App\Observers\ReferralAttributionObserver.
+        */
+        $middleware->appendToGroup('web', \App\Http\Middleware\CaptureReferralCode::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(function ($request, $throwable) {

@@ -11,13 +11,13 @@ use App\Http\Controllers\OrganizationDashboardController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ParticipantDashboardController;
 use App\Http\Controllers\ParticipantProfileController;
-use App\Http\Controllers\ParticipantStudyInvitationController;
+use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\ReliabilityController;
 use App\Http\Controllers\ResearcherDashboardController;
 use App\Http\Controllers\ResearcherParticipantController;
 use App\Http\Controllers\ResearcherProfileController;
 use App\Http\Controllers\StudyController;
-use App\Http\Controllers\StudyInvitationController;
 use App\Http\Controllers\VerificationController;
 
 /*
@@ -146,13 +146,20 @@ Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('pa
     Route::get('/reliability', [ReliabilityController::class, 'index'])
         ->name('reliability');
 
-    /* ---- Study invitations ---- */
-    Route::get('/studies/{study}/invitation', [ParticipantStudyInvitationController::class, 'show'])
-        ->name('studies.invitation');
-    Route::post('/studies/{study}/invitation/accept', [ParticipantStudyInvitationController::class, 'accept'])
-        ->name('studies.invitation.accept');
-    Route::post('/studies/{study}/invitation/decline', [ParticipantStudyInvitationController::class, 'decline'])
-        ->name('studies.invitation.decline');
+    /* ---- FEATURE — Study invitations (Member 4, API-DRIVEN) ----
+       One GET only. The page fetches GET /api/v1/invitations and responds
+       through PATCH /api/v1/invitations/{invitation}, so the two web POST
+       routes that used to accept and decline are gone — along with the
+       redirect-only GET /studies/{study}/invitation they sat beside. */
+    Route::get('/invitations', [InvitationController::class, 'index'])
+        ->name('invitations');
+
+    /* ---- FEATURE — Referral system (Member 4, API-DRIVEN) ----
+       One GET. The link, progress, referred users and rewards all come from
+       /api/v1/referrals/me. There is no web POST: generating a code is
+       POST /api/v1/referrals/me/code. */
+    Route::get('/referrals', [ReferralController::class, 'index'])
+        ->name('referrals');
 
     /* ---- Profile builder ---- */
     Route::get('/profile',             [ParticipantProfileController::class, 'edit'])->name('profile');
@@ -176,11 +183,21 @@ Route::middleware(['auth', 'role:researcher'])->prefix('researcher')->name('rese
        old Blade form is still pointing at it. */
     Route::get('/endorsements',  [EndorsementController::class, 'index'])->name('endorsements');
 
+    /* ---- FEATURE — Smart Participant Matching (Member 4, API-DRIVEN) ----
+       The candidate profile page. One GET; it fetches
+       GET /api/v1/studies/{study}/candidates/{user}.
+
+       The POST that used to send an invitation is gone — inviting is now
+       POST /api/v1/studies/{study}/invitations. */
     Route::get('/studies/{study}/participants/{participant}', [ResearcherParticipantController::class, 'show'])
         ->name('studies.participants.show');
 
-    Route::post('/studies/{study}/invite/{participant}', [StudyInvitationController::class, 'store'])
-        ->name('studies.invite');
+    /* ---- FEATURE — Referral rewards (Member 4, API-DRIVEN) ----
+       Free paid-post credits earned by referring other researchers.
+       Registered before /studies/{study}/... is irrelevant here — no
+       wildcard sibling shares this prefix. */
+    Route::get('/referrals', [ReferralController::class, 'researcher'])
+        ->name('referrals');
 
     /* ---- Profile builder ---- */
     Route::get('/profile',             [ResearcherProfileController::class, 'edit'])->name('profile');

@@ -237,6 +237,16 @@ class DatabaseSeeder extends Seeder
             'stars' => 4, 'comment' => 'Completed the full diary period without prompting.',
         ]);
 
+        // ---------------------------------------------------------------
+        // Per-member seeders. These attach to the users and studies created
+        // above — they never create their own.
+        // ---------------------------------------------------------------
+        $this->call([
+            TopicSeeder::class,           // Member 4 — shared topic vocabulary
+            MatchingTopicsSeeder::class,  // Member 4 — tags, criteria, invitations
+            ReferralSeeder::class,        // Member 4 — referrals, rewards, credits
+        ]);
+
         $this->command->info('TRYBE dummy data seeded: '.User::count().' users, '.Study::count().' studies.');
     }
 
