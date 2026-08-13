@@ -26,5 +26,4 @@ laravel
 colored_changes.diff
 tests/
 docs/
-invitation_routes.txt
-referral_routes.txt
+*_routes.txt
