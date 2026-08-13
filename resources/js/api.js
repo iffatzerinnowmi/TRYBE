@@ -154,6 +154,7 @@ async function request(method, url, body = undefined) {
 export const api = {
     get:    (url)       => request('GET', url),
     post:   (url, body) => request('POST', url, body ?? {}),
+    put:    (url, body) => request('PUT', url, body ?? {}),
     patch:  (url, body) => request('PATCH', url, body ?? {}),
     delete: (url)       => request('DELETE', url),
 };
