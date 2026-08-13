@@ -48,6 +48,10 @@
                     class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
                            transition hover:border-plum hover:text-plum"
                     data-refresh-candidates>Refresh</button>
+             <button type="button"
+                  class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
+                      transition hover:border-plum hover:text-plum"
+                  data-rerecruit>Re-recruit past participants</button>
         </div>
     </div>
 
@@ -144,5 +148,28 @@
 
     <div class="mt-4 space-y-3" data-candidate-list>
         <p class="text-[12.5px] text-dim">Loading…</p>
+    </div>
+
+    {{-- Re-recruit panel (hidden until requested) --}}
+    <div class="mt-4 hidden rounded-xl border border-line bg-surface p-4" data-rerecruit-panel>
+        <div class="flex items-center justify-between">
+            <div class="font-mono text-[12px] text-steel">Re-recruit past participants</div>
+            <div class="flex items-center gap-2">
+                <button type="button" class="rounded-lg border border-line px-2 py-1 text-[12px]" data-rerecruit-refresh>Refresh</button>
+                <button type="button" class="rounded-lg border border-line px-2 py-1 text-[12px]" data-rerecruit-close>Close</button>
+            </div>
+        </div>
+
+        <p class="mt-3 text-[12px] text-dim">Select past participants to invite again.</p>
+
+        <div class="mt-3 space-y-2" data-rerecruit-list>
+            <p class="text-[12px] text-dim">Loading…</p>
+        </div>
+
+        <div class="mt-3 flex items-center gap-2">
+            <button type="button" class="rounded-lg bg-plum/12 px-3 py-1.5 font-mono text-[11px] text-plum"
+                    data-rerecruit-invite>Invite selected</button>
+            <div class="text-[12px] text-steel" data-rerecruit-status></div>
+        </div>
     </div>
 </div>

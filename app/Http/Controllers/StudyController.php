@@ -96,6 +96,29 @@ class StudyController extends Controller
             return $study;
         });
 
+        // Forward any provided eligibility criteria to the matching API so
+        // the study's matching criteria are created without requiring the
+        // researcher to make a separate API call. This calls the API
+        // controller method directly so the same validation and storage
+        // logic is reused (no direct writes to Member 4's tables here).
+        $criteria = $request->only([
+            'age_min','age_max','location','credential_min','required_skills','availability_days','topic_ids'
+        ]);
+
+        // Normalise required_skills when provided as comma-separated string
+        if (isset($criteria['required_skills']) && is_string($criteria['required_skills'])) {
+            $criteria['required_skills'] = array_values(array_filter(array_map('trim', explode(',', $criteria['required_skills']))));
+        }
+
+        if (array_filter($criteria, fn($v) => $v !== null && $v !== '' && $v !== [] )) {
+            $apiReq = new \Illuminate\Http\Request();
+            $apiReq->merge($criteria);
+            $apiReq->setUserResolver(fn() => auth()->user());
+
+            app(\App\Http\Controllers\Api\V1\CandidateApiController::class)
+                ->updateCriteria($apiReq, $study);
+        }
+
         return redirect()->route('dashboard')->with(
             'status',
             $study->status === StudyStatus::OPEN

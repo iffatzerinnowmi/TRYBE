@@ -179,6 +179,16 @@ document.addEventListener('DOMContentLoaded', function () {
         var CANDIDATES_URL  = '/api/v1/studies/' + studyId + '/candidates';
         var INVITATIONS_URL = '/api/v1/studies/' + studyId + '/invitations';
         var CRITERIA_URL    = '/api/v1/studies/' + studyId + '/match-criteria';
+        var RERECRUIT_CANDID_URL = '/api/v1/studies/' + studyId + '/rerecruit-candidates';
+        var RERECRUIT_INVITE_URL = '/api/v1/studies/' + studyId + '/rerecruit';
+
+        var rerecruitButton = panel.querySelector('[data-rerecruit]');
+        var rerecruitPanel = panel.querySelector('[data-rerecruit-panel]');
+        var rerecruitList = panel.querySelector('[data-rerecruit-list]');
+        var rerecruitClose = panel.querySelector('[data-rerecruit-close]');
+        var rerecruitRefresh = panel.querySelector('[data-rerecruit-refresh]');
+        var rerecruitInvite = panel.querySelector('[data-rerecruit-invite]');
+        var rerecruitStatus = panel.querySelector('[data-rerecruit-status]');
 
         function render(data) {
             summary.textContent = data.criteria.summary;
@@ -383,6 +393,85 @@ document.addEventListener('DOMContentLoaded', function () {
 
         cancelButton.addEventListener('click', closeEditor);
         saveButton.addEventListener('click', saveCriteria);
+
+        /* ==============================================================
+           Re-recruit panel: fetch past participants and bulk-invite them
+           ==============================================================
+        */
+        function renderRerecruit(rows) {
+            if (!rows.length) {
+                rerecruitList.innerHTML = message('No past participants match those filters.');
+                return;
+            }
+
+            rerecruitList.innerHTML = rows.map(function (r) {
+                return '<label class="flex items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">'
+                    + '<input type="checkbox" data-rerecruit-id="' + esc(r.participant_id) + '" class="h-4 w-4">'
+                    + '<div class="min-w-0 flex-1">'
+                    +   '<div class="truncate text-[13.5px] font-semibold text-ink">' + esc(r.name || ('Participant ' + r.participant_id)) + '</div>'
+                    +   '<div class="font-mono text-[11px] text-steel">' + esc((r.completed_studies_count || 0) + ' completed · ' + (r.participations_count || 0) + ' participations') + '</div>'
+                    + '</div>'
+                    + '</label>';
+            }).join('');
+        }
+
+        function openRerecruit() {
+            rerecruitStatus.textContent = '';
+            rerecruitList.innerHTML = message('Loading…');
+            api.get(RERECRUIT_CANDID_URL)
+                .then(function (res) { renderRerecruit(res.data.candidates); rerecruitPanel.classList.remove('hidden'); })
+                .catch(function (err) { rerecruitList.innerHTML = message(err.message, 'error'); rerecruitPanel.classList.remove('hidden'); });
+        }
+
+        function closeRerecruit() {
+            rerecruitPanel.classList.add('hidden');
+            rerecruitStatus.textContent = '';
+        }
+
+        function inviteSelected() {
+            var inputs = Array.prototype.slice.call(rerecruitList.querySelectorAll('[data-rerecruit-id]'));
+            var ids = inputs.filter(function (i) { return i.checked; }).map(function (i) { return Number(i.dataset.rerecruitId); });
+
+            if (!ids.length) {
+                rerecruitStatus.textContent = 'Pick at least one participant to invite.';
+                return;
+            }
+
+            rerecruitInvite.disabled = true;
+            rerecruitInvite.textContent = 'Inviting…';
+            rerecruitStatus.textContent = '';
+
+            api.post(RERECRUIT_INVITE_URL, { participant_ids: ids })
+                .then(function (res) {
+                    rerecruitStatus.textContent = res.message || 'Invites processed.';
+                    rerecruitInvite.disabled = false;
+                    rerecruitInvite.textContent = 'Invite selected';
+
+                    // refresh main candidate list to show new invites
+                    load();
+                })
+                .catch(function (err) {
+                    rerecruitStatus.textContent = err.message || 'Failed to send invites.';
+                    rerecruitInvite.disabled = false;
+                    rerecruitInvite.textContent = 'Invite selected';
+                });
+        }
+
+        if (rerecruitButton) {
+            rerecruitButton.addEventListener('click', openRerecruit);
+        }
+
+        if (rerecruitClose) {
+            rerecruitClose.addEventListener('click', closeRerecruit);
+        }
+
+        if (rerecruitRefresh) {
+            rerecruitRefresh.addEventListener('click', openRerecruit);
+        }
+
+        if (rerecruitInvite) {
+            rerecruitInvite.addEventListener('click', inviteSelected);
+        }
 
         /* The list changes because of somebody else's action — a participant
            accepting. Refresh when the tab comes back to the foreground rather
