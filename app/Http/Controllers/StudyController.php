@@ -24,10 +24,28 @@ class StudyController extends Controller
     public function index()
     {
         $user = auth()->user();
+        $query = request()->query();
 
         $studies = Study::query()
             ->with('researcher')
             ->where('status', StudyStatus::OPEN)
+            ->when(! empty($query['q'] ?? null), function ($q) use ($query) {
+                $term = trim($query['q']);
+                $q->where(function ($inner) use ($term) {
+                    $inner->where('title', 'like', "%{$term}%")
+                        ->orWhere('description', 'like', "%{$term}%")
+                        ->orWhere('category', 'like', "%{$term}%");
+                });
+            })
+            ->when(! empty($query['category'] ?? null), function ($q) use ($query) {
+                $q->where('category', $query['category']);
+            })
+            ->when(! empty($query['method'] ?? null), function ($q) use ($query) {
+                $q->where('method', $query['method']);
+            })
+            ->when(! empty($query['incentive_type'] ?? null), function ($q) use ($query) {
+                $q->where('incentive_type', $query['incentive_type']);
+            })
             ->latest('id')
             ->get();
 
@@ -38,6 +56,15 @@ class StudyController extends Controller
         return view('studies.index', [
             'user' => $user,
             'studies' => $studies,
+            'filters' => [
+                'q' => $query['q'] ?? '',
+                'category' => $query['category'] ?? '',
+                'method' => $query['method'] ?? '',
+                'incentive_type' => $query['incentive_type'] ?? '',
+            ],
+            'categories' => Study::query()->where('status', StudyStatus::OPEN)->select('category')->distinct()->pluck('category')->filter()->values(),
+            'methods' => ['online', 'in_person', 'phone', 'hybrid'],
+            'incentiveTypes' => collect(IncentiveType::cases())->map(fn ($t) => $t->value)->values(),
         ]);
     }
 
