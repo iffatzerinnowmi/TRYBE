@@ -4,8 +4,8 @@
 
 @section('content')
 {{--
-    API-DRIVEN PAGE — see participant/reliability.blade.php for the same
-    pattern. No Blade data here: every value is fetched as JSON.
+    API-DRIVEN PAGE — see participant/reliability.blade.php for the pattern.
+    CredentialController passes nothing; everything below is fetched.
 
     This page calls TWO endpoints on load:
         GET .../credentials                    -> badge, ladder, progress
@@ -56,6 +56,10 @@
 
                     <p id="cred-next" class="mt-5 text-[13.5px] leading-relaxed text-white/80">&nbsp;</p>
 
+                    {{-- Shown only when a referral reward granted a tier. --}}
+                    <p id="cred-grant" class="mt-3 hidden rounded-xl bg-white/12 px-3.5 py-2.5
+                                              text-[12.5px] leading-relaxed text-white/85"></p>
+
                     {{-- Was a <form method="POST">. Now a fetch() call. --}}
                     <button type="button" id="recalculate-btn"
                             class="mt-6 w-full rounded-xl bg-mint px-5 py-3 text-sm font-semibold text-ink
@@ -80,6 +84,11 @@
                     Nothing else affects it — not karma, not your profile, not how long
                     you've been a member. That is deliberate: a credential nobody can
                     game is a credential researchers can trust.
+                </p>
+                <p class="mt-3 text-[13px] leading-relaxed text-dim">
+                    Your level is a <b class="text-ink">floor</b>, so it never goes down.
+                    A tier unlocked through a referral reward is kept even though the
+                    completions behind it are still to come.
                 </p>
             </x-panel>
         </div>
@@ -184,6 +193,25 @@ document.addEventListener('DOMContentLoaded', function () {
                            + (n === 1 ? 'study' : 'studies') + ' to reach '
                            + '<b class="text-mint">' + esc(data.next_level_label) + '</b>.';
         }
+
+        /* The referral note. Two states: honoured, or waiting on a recalculate. */
+        var grant = document.getElementById('cred-grant');
+
+        if (!data.granted_level) {
+            grant.className = 'mt-3 hidden rounded-xl bg-white/12 px-3.5 py-2.5 '
+                            + 'text-[12.5px] leading-relaxed text-white/85';
+            grant.textContent = '';
+            return;
+        }
+
+        grant.className = 'mt-3 rounded-xl bg-white/12 px-3.5 py-2.5 '
+                        + 'text-[12.5px] leading-relaxed text-white/85';
+
+        grant.innerHTML = data.grant_applied
+            ? '🎁 <b class="text-mint">' + esc(data.granted_level_label) + '</b> unlocked '
+              + 'through a referral reward, ahead of the completions.'
+            : '🎁 A referral reward unlocked <b class="text-mint">'
+              + esc(data.granted_level_label) + '</b>. Hit recalculate to apply it.';
     }
 
     /* --- The three-rung ladder --- */
@@ -193,15 +221,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
         data.ladder.forEach(function (tier) {
             var isCurrent = tier.level === data.credential_level;
-            var earned    = tier.unlocked;
 
             var box = isCurrent
                 ? 'border-plum bg-plum/5'
-                : (earned ? 'border-ok/30 bg-ok/5' : 'border-line opacity-60');
+                : (tier.unlocked ? 'border-ok/30 bg-ok/5' : 'border-line opacity-60');
 
+            /* Three states, not two. A tier can be held without the
+               completions behind it, and saying "Earned" there would be a
+               lie the completed-studies list below immediately contradicts. */
             var statusBadge = '';
-            if (isCurrent)   { statusBadge = badge('plum', 'You are here'); }
-            else if (earned) { statusBadge = badge('ok', 'Earned'); }
+
+            if (isCurrent)         { statusBadge = badge('plum', 'You are here'); }
+            else if (tier.granted) { statusBadge = badge('gold', 'Granted'); }
+            else if (tier.unlocked) { statusBadge = badge('ok', 'Earned'); }
+
+            var grantNote = (tier.granted && isCurrent)
+                ? '<p class="mt-1.5 font-mono text-[10.5px] text-steel">'
+                  + 'Unlocked by referral — ' + count + ' of ' + tier.min_completions
+                  + ' completions so far.</p>'
+                : '';
 
             html +=
               '<div class="flex items-start gap-4 rounded-xl border p-4 transition ' + box + '">'
@@ -215,7 +253,8 @@ document.addEventListener('DOMContentLoaded', function () {
             +       statusBadge
             +     '</div>'
             +     '<p class="mt-1.5 text-[13px] leading-relaxed text-dim">' + esc(tier.perk) + '</p>'
-            +     (earned ? '' : '<div class="mt-3">' + progress(count, tier.min_completions) + '</div>')
+            +     grantNote
+            +     (tier.unlocked ? '' : '<div class="mt-3">' + progress(count, tier.min_completions) + '</div>')
             +   '</div>'
             + '</div>';
         });

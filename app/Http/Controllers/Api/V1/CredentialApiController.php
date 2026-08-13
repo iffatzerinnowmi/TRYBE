@@ -29,6 +29,22 @@ use Illuminate\Http\Request;
  * Anything the page displays must therefore appear in one of them —
  * including display labels, which is why stage_label and completed_on are
  * built here rather than in JavaScript. The enum owns its own labels.
+ *
+ * EARNED vs GRANTED
+ * -----------------
+ * A credential level can now sit ABOVE the completion count, because Member
+ * 4's referral reward grants a tier and CredentialService honours it as a
+ * floor. That means "have I unlocked this rung?" is no longer just a
+ * comparison against the count — a granted Gold with two completions has
+ * unlocked Gold without having earned it.
+ *
+ * Each rung therefore reports two flags:
+ *
+ *   unlocked  — do you have this tier, by any route?
+ *   granted   — do you have it WITHOUT the completions to back it up?
+ *
+ * Without that second flag the page contradicts itself: a Gold badge sitting
+ * above a greyed-out, locked Gold rung.
  */
 class CredentialApiController extends Controller
 {
@@ -50,7 +66,9 @@ class CredentialApiController extends Controller
     /**
      * POST /api/v1/participants/{user}/credentials/recalculate
      *
-     * Recounts completed studies and re-derives the level.
+     * Recounts completed studies and re-derives the level. The level can go
+     * up or stay the same; it never goes down.
+     *
      * Allowed for: the participant themselves, or an admin.
      */
     public function recalculate(Request $request, User $user): JsonResponse
@@ -69,6 +87,12 @@ class CredentialApiController extends Controller
             'new_level'       => $result['to']->value,
             'promoted'        => $result['promoted'],
             'completed_count' => $result['count'],
+
+            // What the count alone would have earned, and what a referral
+            // granted. Useful in Postman for showing the floor at work.
+            'earned_level'    => $result['earned']->value,
+            'granted_level'   => $result['granted']?->value,
+
             'data'            => $this->payload($user->fresh()),
         ], 200);
     }
@@ -133,13 +157,31 @@ class CredentialApiController extends Controller
         $current = $profile->credential_level;
         $next    = $this->credentials->nextTier($current);
 
-        $ladder = collect($this->credentials->ladder())->map(fn ($tier) => [
-            'level'            => $tier['level']->value,
-            'label'            => $tier['level']->label(),
-            'min_completions'  => $tier['level']->minCompletions(),
-            'perk'             => $tier['perk'],
-            'unlocked'         => $count >= $tier['level']->minCompletions(),
-        ]);
+        // A referral-granted tier, if any. Null for almost everyone.
+        $granted      = $this->credentials->grantedLevel($user);
+        $currentIndex = $this->credentials->levelIndex($current);
+
+        $ladder = collect($this->credentials->ladder())->map(function ($tier) use ($count, $currentIndex) {
+            $level = $tier['level'];
+
+            // Two separate questions, and they can disagree.
+            $earnedByCount = $count >= $level->minCompletions();
+            $unlocked      = $earnedByCount
+                             || $this->credentials->levelIndex($level) <= $currentIndex;
+
+            return [
+                'level'           => $level->value,
+                'label'           => $level->label(),
+                'min_completions' => $level->minCompletions(),
+                'perk'            => $tier['perk'],
+
+                'unlocked'        => $unlocked,
+
+                // Held without the completions to back it up — the page
+                // labels these "Granted" rather than "Earned".
+                'granted'         => $unlocked && ! $earnedByCount,
+            ];
+        });
 
         return [
             'user_id'                 => $user->id,
@@ -158,6 +200,15 @@ class CredentialApiController extends Controller
             'live_completed_count'    => $this->credentials->completedCount($user),
             'thresholds'              => config('platform.credential_thresholds'),
             'ladder'                  => $ladder,
+
+            // Cross-module: the tier a referral reward granted, and whether
+            // the stored level already honours it. False here means a
+            // recalculate is due before the reward shows up.
+            'granted_level'           => $granted?->value,
+            'granted_level_label'     => $granted?->label(),
+            'grant_applied'           => $granted === null
+                                         || $this->credentials->levelIndex($current)
+                                            >= $this->credentials->levelIndex($granted),
         ];
     }
 
