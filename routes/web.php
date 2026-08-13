@@ -131,9 +131,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
 Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('participant.')->group(function () {
 
-    /* ---- FEATURE 1 — Credentialing ----
-       Still a normal Blade page. When it is converted to the API pattern,
-       delete the recalculate POST below the same way reliability's was. */
+    /* ---- FEATURE 1 — Credentialing (API-DRIVEN) ----
+       One GET only. The page fetches from /api/v1/participants/{user}/credentials
+       and recalculates through the API, so no web POST route exists here. */
     Route::get('/credentials', [CredentialController::class, 'index'])
         ->name('credentials');
     
@@ -175,9 +175,13 @@ Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('pa
 
 Route::middleware(['auth', 'role:researcher'])->prefix('researcher')->name('researcher.')->group(function () {
 
-    /* ---- FEATURE 3 — Endorsements ---- */
+    /* ---- FEATURE 3 — Endorsements (API-DRIVEN) ----
+       One GET only. The queue, the tag picker, the standing ring and the
+       submit all go through /api/v1/endorsements* — so the POST that used
+       to live on this line has been deleted, along with
+       EndorsementController::store(). If you see a 405 on this URL, some
+       old Blade form is still pointing at it. */
     Route::get('/endorsements',  [EndorsementController::class, 'index'])->name('endorsements');
-    Route::post('/endorsements', [EndorsementController::class, 'store'])->name('endorsements.store');
 
     /* ---- FEATURE — Smart Participant Matching (Member 4, API-DRIVEN) ----
        The candidate profile page. One GET; it fetches
@@ -211,8 +215,11 @@ Route::middleware(['auth', 'role:researcher,organization'])->group(function () {
     Route::get('/verification',  [VerificationController::class, 'index'])->name('verification.index');
     Route::post('/verification', [VerificationController::class, 'store'])->name('verification.store');
 });
+
 /* ---- Notification centre (Member 1 — every logged-in role) ----
-       One GET only. The page is API-driven: the feed, preferences, push
-       setup and mark-as-read all go through /api/v1/notifications/*. */
+   One GET only. The page is API-driven: the feed, preferences, push
+   setup and mark-as-read all go through /api/v1/notifications/*. */
+Route::middleware('auth')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])
         ->name('notifications.index');
+});

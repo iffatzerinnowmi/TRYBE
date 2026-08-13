@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthApiController;
 use App\Http\Controllers\Api\V1\CandidateApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
+use App\Http\Controllers\Api\V1\EndorsementApiController;
 use App\Http\Controllers\Api\V1\MatchedStudyApiController;
 use App\Http\Controllers\Api\V1\NotificationApiController;
 use App\Http\Controllers\Api\V1\PlatformApiController;
@@ -120,6 +121,23 @@ Route::prefix('v1')->group(function () {
         Route::get(
             'participants/{user}/credentials/completed-studies',
             [CredentialApiController::class, 'completedStudies']
+        );
+
+        // --- Endorsements → Verified Participant badge ---
+        // 'endorsements/pending' is a fixed segment and there is no
+        // 'endorsements/{id}' route, so ordering is not a trap here yet.
+        // If anyone ever adds one, it must go BELOW this line.
+        Route::get(
+            'endorsements/pending',
+            [EndorsementApiController::class, 'pending']
+        );
+        Route::post(
+            'endorsements',
+            [EndorsementApiController::class, 'store']
+        );
+        Route::get(
+            'participants/{user}/endorsements',
+            [EndorsementApiController::class, 'standing']
         );
 
         // --- Notification centre + Web Push ---
