@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\MatchedStudyApiController;
 use App\Http\Controllers\Api\V1\NotificationApiController;
 use App\Http\Controllers\Api\V1\PlatformApiController;
 use App\Http\Controllers\Api\V1\ReferralApiController;
+use App\Http\Controllers\Api\V1\ReRecruitApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
 use App\Http\Controllers\Api\V1\StudyInvitationApiController;
 use Illuminate\Support\Facades\Route;
@@ -186,8 +187,49 @@ Route::prefix('v1')->group(function () {
         // MEMBER 2 — Roza
         // study creation · listings · screener forms · pipelines
         // ==================================================================
+        // Re-recruit past participants: candidate discovery and bulk invites.
+        Route::get(
+            'studies/{study}/rerecruit-candidates',
+            [ReRecruitApiController::class, 'candidates']
+        );
 
-        // (add your routes here)
+        Route::post(
+            'studies/{study}/rerecruit',
+            [ReRecruitApiController::class, 'inviteBulk']
+        );
+
+        /* Study Listing Board (CRUD + filtering) */
+        Route::get('studies', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'index']);
+        Route::get('studies/{study}', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'show']);
+        Route::post('studies', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'store']);
+        Route::patch('studies/{study}', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'update']);
+        Route::delete('studies/{study}', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'destroy']);
+
+        /* Screener Survey Builder (placeholder endpoints) */
+        Route::get('studies/{study}/screeners', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'index']);
+        Route::post('studies/{study}/screeners', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'store']);
+        Route::get('studies/{study}/screeners/{question}', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'show']);
+        Route::patch('studies/{study}/screeners/{question}', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'update']);
+        Route::delete('studies/{study}/screeners/{question}', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'destroy']);
+
+        /* Slot Scheduling (placeholder endpoints) */
+        Route::get('studies/{study}/slots', [\App\Http\Controllers\Api\V1\ScheduleApiController::class, 'index']);
+        Route::post('studies/{study}/slots', [\App\Http\Controllers\Api\V1\ScheduleApiController::class, 'store']);
+        Route::post('studies/{study}/slots/{slot}/book', [\App\Http\Controllers\Api\V1\ScheduleApiController::class, 'book']);
+
+        /* Participant Pipeline Tracker */
+        Route::get('studies/{study}/pipeline', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'index']);
+        Route::post('studies/{study}/pipeline/stage', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'updateStage']);
+
+        /* Bulk messaging participants by stage */
+        Route::post('studies/{study}/messages', [\App\Http\Controllers\Api\V1\MessagingApiController::class, 'sendToStage']);
+
+        /* Session notes & tagging */
+        Route::get('participants/{participant}/notes', [\App\Http\Controllers\Api\V1\NotesApiController::class, 'index']);
+        Route::post('participants/{participant}/notes', [\App\Http\Controllers\Api\V1\NotesApiController::class, 'store']);
+
+        /* Researcher tier info */
+        Route::get('researchers/me/tier', [\App\Http\Controllers\Api\V1\TierApiController::class, 'myTier']);
 
 
         // ==================================================================
