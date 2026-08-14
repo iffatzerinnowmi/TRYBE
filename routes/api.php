@@ -244,7 +244,7 @@ Route::prefix('v1')->group(function () {
            authorise. */
         Route::get('karma/me', [KarmaApiController::class, 'me']);
         Route::get('karma/me/transactions', [KarmaApiController::class, 'transactions']);
-        Route::post('karma/me/sync', [KarmaApiController::class, 'sync']);
+    
 
 
 

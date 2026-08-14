@@ -56,12 +56,12 @@ class KarmaService
                 return null;
             }
 
-        return KarmaTransaction::create([
-            'user_id'   => $user->id,
-            'amount'    => $points,
-            'source'    => $source,
-            'metadata'  => $note ? ['note' => $note] : null,
-        ]);
+            return KarmaTransaction::create([
+                'user_id'   => $user->id,
+                'amount'    => -$points,
+                'source'    => $source,
+                'metadata'  => $note ? ['note' => $note] : null,
+            ]);
         });
     }
 
