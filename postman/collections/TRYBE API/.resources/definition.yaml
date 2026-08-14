@@ -6,5 +6,9 @@ variables:
   token: ""
 auth:
   - id: 3c1fc4e9-806f-4749-b2fc-0ca2c8e5c61a
-    type: apikey
-    name: API Key
+    type: bearer
+    name: Bearer Token
+    credentials:
+      token: "{{token}}"
+    rules:
+      url: http://127.0.0.1:1110/*

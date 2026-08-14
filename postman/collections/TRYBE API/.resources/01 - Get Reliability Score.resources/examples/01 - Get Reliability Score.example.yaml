@@ -1,0 +1,127 @@
+$kind: http-example
+request:
+  url: "{{base}}/api/v1/participants/7/reliability"
+  method: GET
+  headers:
+    Accept: application/json
+  body:
+    type: json
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    host: 127.0.0.1:1110
+    connection: close
+    x-powered-by: PHP/8.4.24
+    cache-control: no-cache, private
+    date: Thu, 13 Aug 2026 19:38:01 GMT
+    content-type: application/json
+    access-control-allow-origin: "*"
+  body:
+    type: json
+    content: |-
+      {
+        "data": {
+          "user_id": 7,
+          "name": "Iffat Zerin Nowmi",
+          "reliability_score": 90,
+          "factors_total": 90.4,
+          "band": {
+            "label": "Excellent",
+            "tone": "ok",
+            "message": "You are prioritised for high-demand paid studies."
+          },
+          "factors": {
+            "rel_attendance": {
+              "key": "attendance",
+              "label": "Attendance & show-up rate",
+              "description": "How often you show up to sessions you booked.",
+              "weight": 20,
+              "stored_value": 100,
+              "contribution": 20,
+              "live_value": 100,
+              "live_contribution": 20,
+              "has_data": true,
+              "detail": "5 attended · 0 missed"
+            },
+            "rel_completion": {
+              "key": "completion",
+              "label": "Study completion rate",
+              "description": "Studies you finished vs. ones you started.",
+              "weight": 40,
+              "stored_value": 83,
+              "contribution": 33.2,
+              "live_value": 83,
+              "live_contribution": 33.2,
+              "has_data": true,
+              "detail": "5 finished of 6 started"
+            },
+            "rel_reviews": {
+              "key": "reviews",
+              "label": "Post-session reviews",
+              "description": "Ratings researchers leave after your sessions.",
+              "weight": 40,
+              "stored_value": 93,
+              "contribution": 37.2,
+              "live_value": 93,
+              "live_contribution": 37.2,
+              "has_data": true,
+              "detail": "4.7 stars from 6 reviews"
+            }
+          },
+          "weights": {
+            "attendance": 20,
+            "completion": 40,
+            "reviews": 40
+          },
+          "stored": {
+            "rel_attendance": 100,
+            "rel_completion": 83,
+            "rel_reviews": 93,
+            "reliability_score": 90
+          },
+          "auction": {
+            "seats": 3,
+            "rank": 3,
+            "won_seat": true,
+            "rivals": 5,
+            "pool": [
+              {
+                "name": "Rafi Ahmed",
+                "score": 96,
+                "you": false
+              },
+              {
+                "name": "Sadia Momo",
+                "score": 92,
+                "you": false
+              },
+              {
+                "name": "You",
+                "score": 90,
+                "you": true
+              },
+              {
+                "name": "Mim",
+                "score": 70,
+                "you": false
+              },
+              {
+                "name": "Arafat",
+                "score": 70,
+                "you": false
+              },
+              {
+                "name": "Tanvir Khan",
+                "score": 40,
+                "you": false
+              }
+            ]
+          },
+          "live_score": 90,
+          "live_total": 90.4,
+          "in_sync": true
+        }
+      }
+order: 1786651494824

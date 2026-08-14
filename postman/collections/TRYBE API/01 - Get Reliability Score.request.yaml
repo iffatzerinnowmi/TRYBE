@@ -1,0 +1,5 @@
+$kind: http-request
+url: "{{base}}/api/v1/participants/7/reliability"
+method: GET
+examples: .resources/01 - Get Reliability Score.resources/examples
+order: 2065261274717683
