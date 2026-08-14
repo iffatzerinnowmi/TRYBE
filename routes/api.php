@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthApiController;
 use App\Http\Controllers\Api\V1\CandidateApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
 use App\Http\Controllers\Api\V1\EndorsementApiController;
+use App\Http\Controllers\Api\V1\KarmaApiController;
 use App\Http\Controllers\Api\V1\MatchedStudyApiController;
 use App\Http\Controllers\Api\V1\NotificationApiController;
 use App\Http\Controllers\Api\V1\PlatformApiController;
@@ -195,7 +196,15 @@ Route::prefix('v1')->group(function () {
         // karma · payments · escrow · free-to-paid unlock
         // ==================================================================
 
-        // (add your routes here)
+        /* ---- Karma Credits System ----
+           Everything is scoped to /me, same reasoning as /referrals/me: a
+           karma balance is only ever your own, so there is no {user} to
+           authorise. */
+        Route::get('karma/me', [KarmaApiController::class, 'me']);
+        Route::get('karma/me/transactions', [KarmaApiController::class, 'transactions']);
+        Route::post('karma/me/sync', [KarmaApiController::class, 'sync']);
+
+
 
 
         // ==================================================================

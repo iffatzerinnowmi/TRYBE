@@ -130,4 +130,18 @@ return [
         // person does not sign up straight away.
         'attribution_days' => env('TRYBE_REFERRAL_ATTRIBUTION_DAYS', 30),
     ],
+
+    /* ---------------- Section 8 (Member 3) — Karma Credits ----------------
+     | Points awarded per action. KarmaService::earn() reads these by the
+     | KarmaSource enum's value, and the "How to earn karma" panel on the
+     | participant page displays the same numbers via GET /api/v1/karma/me
+     | — so changing a number here changes what participants are paid and
+     | what the page tells them they'll be paid, together, in one place.
+     */
+    'karma' => [
+        'study_completed'  => env('TRYBE_KARMA_STUDY_COMPLETED', 10),
+        'session_on_time'  => env('TRYBE_KARMA_SESSION_ON_TIME', 5),
+        'review_left'      => env('TRYBE_KARMA_REVIEW_LEFT', 2),
+        'referral_success' => env('TRYBE_KARMA_REFERRAL_SUCCESS', 20),
+    ],
 ];
