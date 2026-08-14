@@ -35,6 +35,8 @@
             'Invites'     => '/participant/invitations',
             'Refer'       => '/participant/referrals',
             'Alerts'      => '/notifications',
+            //member3- karma credits
+            'Karma' => '/participant/karma',
         ],
         'researcher' => [
             'Dashboard'    => '/dashboard',

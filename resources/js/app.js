@@ -11,3 +11,5 @@ import './invitations';          // the participant's invitations page
 /* Member 4 — Referral system. */
 import './referrals';            // Refer a Friend (participant + researcher)
 import './referral-banner';      // "you were invited by X" on the signup page
+/* Member 3 — Karma Credits. */
+import './karma';

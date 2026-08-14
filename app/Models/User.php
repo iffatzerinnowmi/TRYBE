@@ -3,10 +3,12 @@ namespace App\Models;
 use Laravel\Sanctum\HasApiTokens;
 use App\Enums\UserRole;
 use App\Enums\VerificationStatus;
+use App\Models\KarmaTransaction;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+
 
 class User extends Authenticatable {
     use HasApiTokens, Notifiable;
@@ -28,7 +30,12 @@ class User extends Authenticatable {
 
     public function studies(): HasMany { return $this->hasMany(Study::class, 'researcher_id'); }
     public function participations(): HasMany { return $this->hasMany(StudyParticipation::class, 'participant_id'); }
+    public function karmaTransactions(): HasMany
+    {
+    return $this->hasMany(KarmaTransaction::class);
+    }
     public function endorsementsReceived(): HasMany { return $this->hasMany(Endorsement::class, 'participant_id'); }
+
     public function endorsementsGiven(): HasMany { return $this->hasMany(Endorsement::class, 'researcher_id'); }
     public function following(): HasMany { return $this->hasMany(Follow::class, 'follower_id'); }
     public function followers(): HasMany { return $this->hasMany(Follow::class, 'researcher_id'); }

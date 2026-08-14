@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Enums\CredentialLevel;
+use App\Enums\KarmaSource;
+
 use App\Enums\PostCreditReason;
 use App\Enums\ReferralRewardType;
 use App\Enums\ReferralStatus;
@@ -18,6 +20,7 @@ use App\Enums\PipelineStage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\KarmaService;
 
 /**
  * FEATURE — Referral system  (Member 4, graded feature)
@@ -250,6 +253,24 @@ class ReferralService
                 'qualified_at'        => $evidence['at'] ?? now(),
                 'qualifying_study_id' => $evidence['study_id'],
             ]);
+
+            // Karma Credits (Member 3): the one karma-earning event that has
+            // a real, existing trigger — a referral just became qualified.
+            // This line runs exactly once per referral, because a QUALIFIED
+            // referral drops out of the pending() scope this loop is built
+            // from, so sync() being called repeatedly cannot double-fire it.
+            try {
+                app(\App\Services\KarmaService::class)->earn(
+                    $referrer,
+                    \App\Enums\KarmaSource::REFERRAL_SUCCESS,
+                    'Referral qualified: '.($referred->name ?? 'a new user')
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Karma award for referral qualification failed.', [
+                    'referrer_id' => $referrer->id, 'referral_id' => $referral->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 

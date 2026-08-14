@@ -14,7 +14,7 @@
     @endif
 
     {{-- ---------- headline numbers, all from the profile row ---------- --}}
-    <div class="grid grid-cols-2 gap-4 py-2 md:grid-cols-4">
+    <div class="grid grid-cols-2 gap-4 py-2 md:grid-cols-5">
         <x-stat-card icon="📊" :value="$profile->reliability_score" label="RELIABILITY SCORE" class="reveal" />
 
         <x-stat-card icon="🥉" :value="$profile->credential_level->label()" label="CREDENTIAL LEVEL" class="reveal reveal-d1">
@@ -37,6 +37,12 @@
                    ? 'Verified participant'
                    : config('platform.endorsements_for_verified_badge') - $profile->endorsement_count . ' to go' }}
             </x-badge>
+        </x-stat-card>
+
+        <x-stat-card icon="⭐" :value="$karmaBalance" label="KARMA CREDITS" class="reveal reveal-d3">
+            <a href="{{ route('participant.karma') }}" class="text-[12px] font-semibold text-plum hover:underline">
+                View activity →
+            </a>
         </x-stat-card>
     </div>
 

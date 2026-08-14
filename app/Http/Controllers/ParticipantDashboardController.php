@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\CredentialLevel;
 use App\Enums\PipelineStage;
 use App\Models\StudyParticipation;
+use App\Services\KarmaService;
 use App\Services\StudyMatchingService;
 
 /**
@@ -15,13 +16,15 @@ use App\Services\StudyMatchingService;
  */
 class ParticipantDashboardController extends Controller
 {
-    public function index(StudyMatchingService $matching)
+    public function index(StudyMatchingService $matching, KarmaService $karma)
     {
         $user = auth()->user();
         $profile = $user->participantProfile;
 
         // A participant who signed up before their profile row existed.
         abort_if(! $profile, 404, 'No participant profile found for this account.');
+        //show karma balance
+        $karmaBalance = $karma->balanceFor($user);
 
         /* ---- unlock progress: volunteer studies completed vs the rule ---- */
         $unlockTarget = (int) config('platform.free_forms_to_unlock_paid');
@@ -89,7 +92,9 @@ class ParticipantDashboardController extends Controller
             'next',
             'recommended',
             'applications',
-            'badges'
+            'badges',
+            'karmaBalance'
+
         ));
     }
 
