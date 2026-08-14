@@ -11,5 +11,15 @@ import './invitations';          // the participant's invitations page
 /* Member 4 — Referral system. */
 import './referrals';            // Refer a Friend (participant + researcher)
 import './referral-banner';      // "you were invited by X" on the signup page
+
 /* Member 3 — Karma Credits. */
 import './karma';
+
+/* Member 2 — Module 2 frontend stubs (loaded only where needed). */
+import './module2/studies';
+import './module2/screener';
+import './module2/schedule';
+import './module2/pipeline';
+import './module2/messaging';
+import './module2/notes';
+import './module2/tier';

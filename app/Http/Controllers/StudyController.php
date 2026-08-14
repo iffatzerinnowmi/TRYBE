@@ -24,10 +24,28 @@ class StudyController extends Controller
     public function index()
     {
         $user = auth()->user();
+        $query = request()->query();
 
         $studies = Study::query()
             ->with('researcher')
             ->where('status', StudyStatus::OPEN)
+            ->when(! empty($query['q'] ?? null), function ($q) use ($query) {
+                $term = trim($query['q']);
+                $q->where(function ($inner) use ($term) {
+                    $inner->where('title', 'like', "%{$term}%")
+                        ->orWhere('description', 'like', "%{$term}%")
+                        ->orWhere('category', 'like', "%{$term}%");
+                });
+            })
+            ->when(! empty($query['category'] ?? null), function ($q) use ($query) {
+                $q->where('category', $query['category']);
+            })
+            ->when(! empty($query['method'] ?? null), function ($q) use ($query) {
+                $q->where('method', $query['method']);
+            })
+            ->when(! empty($query['incentive_type'] ?? null), function ($q) use ($query) {
+                $q->where('incentive_type', $query['incentive_type']);
+            })
             ->latest('id')
             ->get();
 
@@ -38,6 +56,15 @@ class StudyController extends Controller
         return view('studies.index', [
             'user' => $user,
             'studies' => $studies,
+            'filters' => [
+                'q' => $query['q'] ?? '',
+                'category' => $query['category'] ?? '',
+                'method' => $query['method'] ?? '',
+                'incentive_type' => $query['incentive_type'] ?? '',
+            ],
+            'categories' => Study::query()->where('status', StudyStatus::OPEN)->select('category')->distinct()->pluck('category')->filter()->values(),
+            'methods' => ['online', 'in_person', 'phone', 'hybrid'],
+            'incentiveTypes' => collect(IncentiveType::cases())->map(fn ($t) => $t->value)->values(),
         ]);
     }
 
@@ -95,6 +122,29 @@ class StudyController extends Controller
 
             return $study;
         });
+
+        // Forward any provided eligibility criteria to the matching API so
+        // the study's matching criteria are created without requiring the
+        // researcher to make a separate API call. This calls the API
+        // controller method directly so the same validation and storage
+        // logic is reused (no direct writes to Member 4's tables here).
+        $criteria = $request->only([
+            'age_min','age_max','location','credential_min','required_skills','availability_days','topic_ids'
+        ]);
+
+        // Normalise required_skills when provided as comma-separated string
+        if (isset($criteria['required_skills']) && is_string($criteria['required_skills'])) {
+            $criteria['required_skills'] = array_values(array_filter(array_map('trim', explode(',', $criteria['required_skills']))));
+        }
+
+        if (array_filter($criteria, fn($v) => $v !== null && $v !== '' && $v !== [] )) {
+            $apiReq = new \Illuminate\Http\Request();
+            $apiReq->merge($criteria);
+            $apiReq->setUserResolver(fn() => auth()->user());
+
+            app(\App\Http\Controllers\Api\V1\CandidateApiController::class)
+                ->updateCriteria($apiReq, $study);
+        }
 
         return redirect()->route('dashboard')->with(
             'status',

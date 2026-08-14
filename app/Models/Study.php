@@ -24,4 +24,6 @@ class Study extends Model {
     ];
     public function researcher(): BelongsTo { return $this->belongsTo(User::class, 'researcher_id'); }
     public function participations(): HasMany { return $this->hasMany(StudyParticipation::class); }
+    public function slots(): HasMany { return $this->hasMany(StudySlot::class); }
+    public function slotBookings(): HasMany { return $this->hasMany(StudySlotBooking::class); }
 }
