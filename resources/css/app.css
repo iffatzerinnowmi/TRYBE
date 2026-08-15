@@ -1,0 +1,118 @@
+/* ==========================================================================
+   TRYBE — app.css
+   This is the ONLY place brand colours, fonts and shapes are defined.
+   Change a value here and it changes everywhere in the whole app.
+   ========================================================================== */
+
+@import "tailwindcss";
+
+/* Tell Tailwind to also scan Blade files for class names. */
+@source "../views";
+
+/* --------------------------------------------------------------------------
+   DESIGN TOKENS
+   Anything you write inside @theme becomes a real Tailwind class.
+   --color-mint  ->  bg-mint / text-mint / border-mint
+   --font-display ->  font-display
+   -------------------------------------------------------------------------- */
+@theme {
+  /* --- brand palette (light -> dark = Bronze -> Expert) --- */
+  --color-mint: #DFF0EA;         /* page background, Bronze tier */
+  --color-steel: #95ADBE;        /* muted text, Gold tier        */
+  --color-plum: #574F7D;         /* primary accent, Expert tier  */
+  --color-ink: #4F3A65;          /* headings + darkest tier      */
+
+  /* --- surfaces --- */
+  --color-surface: #FFFFFF;
+  --color-surface-soft: #EDF6F1;
+
+  /* --- borders (hex with alpha: last 2 digits = transparency) --- */
+  --color-line: #95ADBE66;
+  --color-line-hi: #95ADBE9E;
+
+  /* --- text --- */
+  --color-dim: #6E6693;
+
+  /* --- status colours --- */
+  --color-ok: #2F7D5B;           /* success / completed */
+  --color-flame: #E8945A;        /* streaks / warning   */
+  --color-star: #E8B45A;         /* ratings / Gold      */
+  --color-danger: #B4453C;       /* errors / rejected   */
+
+  /* --- typography --- */
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* --- shape --- */
+  --radius-panel: 20px;
+  --radius-card: 16px;
+
+  /* --- depth --- */
+  --shadow-soft: 0 10px 34px -18px rgba(79, 58, 101, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   BASE PAGE STYLES
+   The soft radial glow on the background comes from here.
+   -------------------------------------------------------------------------- */
+body {
+  background-color: var(--color-mint);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(60rem 42rem at 84% -12%, rgba(255, 255, 255, 0.7), transparent 60%),
+    radial-gradient(46rem 38rem at -6% 6%, rgba(149, 173, 190, 0.22), transparent 58%);
+  background-attachment: fixed;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* --------------------------------------------------------------------------
+   SCROLL REVEAL
+   Any element with class="reveal" fades up when it scrolls into view.
+   The JavaScript that switches on .is-visible lives in layouts/app.blade.php.
+   -------------------------------------------------------------------------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Delay helpers so items in a row appear one after another. */
+.reveal-d1 { transition-delay: 0.08s; }
+.reveal-d2 { transition-delay: 0.16s; }
+.reveal-d3 { transition-delay: 0.24s; }
+
+/* Accessibility: people who ask their device for less motion get none. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  html { scroll-behavior: auto; }
+}
+
+/* --------------------------------------------------------------------------
+   PAGE WIDTH
+   Every page wraps its content in <div class="wrap"> so the whole app lines
+   up on the same 1240px column. Change the number here to re-width the site.
+   -------------------------------------------------------------------------- */
+.wrap {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+@media (min-width: 640px) {
+  .wrap { padding-inline: 28px; }
+}
