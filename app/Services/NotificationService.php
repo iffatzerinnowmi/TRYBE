@@ -55,6 +55,12 @@ class NotificationService
             'label'  => 'Credential level-ups',
             'desc'   => 'When you reach Bronze, Gold or Expert.',
         ],
+        'unlock' => [
+            'column' => 'notify_unlock',
+            'icon'   => '🔓',
+            'label'  => 'Paid study access unlocked',
+            'desc'   => 'When you complete enough free studies to apply to paid ones.',
+        ],
     ];
 
     /** Has this user switched this type on? Defaults to yes. */

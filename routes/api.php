@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\ReferralApiController;
 use App\Http\Controllers\Api\V1\ReRecruitApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
 use App\Http\Controllers\Api\V1\StudyInvitationApiController;
+use App\Http\Controllers\Api\V1\UnlockApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -244,7 +245,18 @@ Route::prefix('v1')->group(function () {
            authorise. */
         Route::get('karma/me', [KarmaApiController::class, 'me']);
         Route::get('karma/me/transactions', [KarmaApiController::class, 'transactions']);
-    
+        /* ---- Free-to-paid unlock ----
+           Complete enough VOLUNTEER studies and paid studies open up. show()
+           reads the stored counter; recalculate() recounts from
+           study_participations and fires the notification on the crossing. */
+        Route::get(
+            'participants/{user}/unlock-status',
+            [UnlockApiController::class, 'show']
+        );
+        Route::post(
+            'participants/{user}/unlock-status/recalculate',
+            [UnlockApiController::class, 'recalculate']
+        );
 
 
 
