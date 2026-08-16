@@ -91,7 +91,7 @@ class FreeToPaidUnlockService
             route('studies.index')
         );
 
-        Mail::to($user->email)->send(new PaidAccessUnlockedMail($user, $count, $target));
+
         try {
             Mail::to($user->email)->send(new PaidAccessUnlockedMail($user, $count, $target));
         } catch (\Throwable $e) {

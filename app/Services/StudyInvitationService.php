@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use App\Services\FreeToPaidUnlockService;
 
 use App\Contracts\PipelineWriter;
 use App\Enums\InvitationStatus;
@@ -39,6 +40,7 @@ class StudyInvitationService
         private StudyMatchingService $matching,
         private NotificationService $notifications,
         private PipelineWriter $pipeline,
+        private FreeToPaidUnlockService $freeToPaidUnlock,
     ) {}
 
     // =================================================================
@@ -267,13 +269,9 @@ class StudyInvitationService
         }
     }
 
-    /**
+  /**
      * Member 3 — free-to-paid unlock rule. A participant who has not
-     * completed enough free studies cannot apply to a paid one, so inviting
-     * them to one only sets up a wall on accept.
-     *
-     * STAND-IN. When Member 3 ships the unlock check, replace the body with
-     * a call to her service so there is one reader of that rule, not two.
+     * completed enough free (volunteer) studies cannot apply to a paid one.
      */
     private function paidStudyBlocker(Study $study, User $participant): ?string
     {
@@ -285,17 +283,17 @@ class StudyInvitationService
             return null;
         }
 
-        $required  = (int) config('platform.free_forms_to_unlock_paid');
-        $completed = (int) ($participant->participantProfile?->completed_studies_count ?? 0);
-
-        if ($completed >= $required) {
+        if ($this->unlock->canApplyToStudy($participant, $study)) {
             return null;
         }
 
+        $progress = $this->unlock->progress($participant);
+
         return 'That participant has not unlocked paid studies yet ('
-            . $completed . ' of ' . $required . ' free studies completed).';
+            . $progress['count'] . ' of ' . $progress['target'] . ' free studies completed).';
     }
 
+    
     /**
      * Member 3 — limited seat auctions award seats by reliability rank, not
      * first-come. An invitation that confirms a seat immediately would defeat
