@@ -2,6 +2,10 @@
 
 @section('title', $study->title)
 
+@push('scripts')
+    @vite(['resources/js/pipeline-tracker.js'])
+@endpush
+
 @section('content')
 <div class="wrap pb-20">
     <x-page-header eyebrow="Study details" title="{{ $study->title }}">
@@ -14,7 +18,7 @@
 
     <div class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <x-panel label="Overview" class="reveal">
-            <div class="space-y-5">
+            <div class="space-y-6">
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
                         <x-badge tone="{{ $study->status->value === 'open' ? 'ok' : 'neutral' }}">
@@ -28,42 +32,42 @@
                         @endif
                     </div>
 
-                    <p class="mt-3 text-[13.5px] leading-relaxed text-dim">{{ $study->description ?? 'No description provided.' }}</p>
+                    <p class="mt-4 text-[13.5px] leading-7 text-dim">{{ $study->description ?? 'No description provided.' }}</p>
                 </div>
 
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div class="rounded-xl border border-line bg-surface-soft p-3.5">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Researcher</div>
-                        <div class="mt-1 text-[13.5px] font-semibold text-ink">{{ $study->researcher->name }}</div>
+                        <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ $study->researcher->name }}</div>
                     </div>
-                    <div class="rounded-xl border border-line bg-surface-soft p-3.5">
+                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Method</div>
-                        <div class="mt-1 text-[13.5px] font-semibold text-ink">{{ ucfirst(str_replace('_', ' ', $study->method)) }}</div>
+                        <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ ucfirst(str_replace('_', ' ', $study->method)) }}</div>
                     </div>
-                    <div class="rounded-xl border border-line bg-surface-soft p-3.5">
+                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Duration</div>
-                        <div class="mt-1 text-[13.5px] font-semibold text-ink">{{ $study->duration_minutes }} minutes</div>
+                        <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ $study->duration_minutes }} minutes</div>
                     </div>
-                    <div class="rounded-xl border border-line bg-surface-soft p-3.5">
+                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Slots</div>
-                        <div class="mt-1 text-[13.5px] font-semibold text-ink">{{ $study->slots }}</div>
+                        <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ $study->slots }}</div>
                     </div>
-                    <div class="rounded-xl border border-line bg-surface-soft p-3.5">
+                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Compensation</div>
-                        <div class="mt-1 text-[13.5px] font-semibold text-ink">৳{{ number_format($study->compensation_amount, 0) }}</div>
+                        <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">৳{{ number_format($study->compensation_amount, 0) }}</div>
                     </div>
-                    <div class="rounded-xl border border-line bg-surface-soft p-3.5">
+                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Deadline</div>
-                        <div class="mt-1 text-[13.5px] font-semibold text-ink">{{ $study->deadline?->format('M d, Y') ?? 'No deadline' }}</div>
+                        <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ $study->deadline?->format('M d, Y') ?? 'No deadline' }}</div>
                     </div>
                 </div>
 
                 {{-- Matching criteria (Member 4). API-driven: filled by
                      resources/js/study-match.js from the matching endpoints. --}}
-                <div class="rounded-xl border border-line bg-surface-soft p-4"
+                <div class="rounded-xl border border-line bg-surface-soft p-5"
                      data-study-criteria data-study-id="{{ $study->id }}">
                     <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Matching criteria</div>
-                    <p class="mt-2 text-[13.5px] leading-relaxed text-ink" data-criteria-summary>Loading…</p>
+                    <p class="mt-3 text-[13.5px] leading-7 text-ink" data-criteria-summary>Loading…</p>
                 </div>
             </div>
         </x-panel>
@@ -134,7 +138,11 @@
                     </div>
                 </x-panel>
 
-                <x-panel label="Suggested participants" class="reveal reveal-d3">
+                <x-panel label="Participant Pipeline" class="reveal reveal-d3" data-pipeline-tracker data-study-id="{{ $study->id }}">
+                    <p class="text-[12.5px] text-dim">Loading pipeline tracker…</p>
+                </x-panel>
+
+                <x-panel label="Suggested participants" class="reveal reveal-d4">
                     @include('researcher.partials.candidates-panel', ['study' => $study])
                 </x-panel>
             @endif
