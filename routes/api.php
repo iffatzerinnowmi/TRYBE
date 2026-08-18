@@ -220,6 +220,7 @@ Route::prefix('v1')->group(function () {
 
         /* Participant Pipeline Tracker */
         Route::get('studies/{study}/pipeline', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'index']);
+        Route::get('studies/{study}/pipeline/stats', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'stats']);
         Route::post('studies/{study}/pipeline/stage', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'updateStage']);
 
         /* Bulk messaging participants by stage */
