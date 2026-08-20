@@ -15,6 +15,7 @@ class User extends Authenticatable {
     protected $fillable = [
         'name','email','phone','password','role','location','verification_status','avatar_path',
         'organization_name','organization_type','registration_documents_path',
+        'google_calendar_token','google_calendar_refresh_token','google_calendar_token_expires_at',
     ];
     protected $hidden = ['password','remember_token'];
     protected $casts = [
@@ -22,6 +23,9 @@ class User extends Authenticatable {
         'password' => 'hashed',
         'role' => UserRole::class,
         'verification_status' => VerificationStatus::class,
+        'google_calendar_token' => 'encrypted',
+        'google_calendar_refresh_token' => 'encrypted',
+        'google_calendar_token_expires_at' => 'datetime',
     ];
 
     public function participantProfile(): HasOne { return $this->hasOne(ParticipantProfile::class); }

@@ -14,7 +14,7 @@ const pipelineTracker = {
       });
 
       if (!response.ok) {
-        if (response.status === 403) {
+        if (response.status === 401 || response.status === 403) {
           container.innerHTML = '<p class="text-dim text-[12.5px]">You don\'t have access to view the pipeline.</p>';
           return;
         }
@@ -29,6 +29,30 @@ const pipelineTracker = {
     }
   },
 };
+
+function xsrfToken() {
+  const cookie = document.cookie.split('; ').find(value => value.startsWith('XSRF-TOKEN='));
+  return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null;
+}
+
+async function postPipeline(url, body = {}) {
+  const token = xsrfToken();
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(token ? { 'X-XSRF-TOKEN': token } : {}),
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify(body),
+  });
+
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || 'Request failed.');
+  return payload;
+}
 
 function renderPipeline(studyId, pipelineData, container) {
   const stages = [
@@ -74,6 +98,42 @@ function renderPipeline(studyId, pipelineData, container) {
           </div>
         `).join('')}
       </div>
+      <div class="border-t border-line pt-4">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Participants</div>
+            <p class="mt-1 text-[12px] text-dim">Mark attendance before completing the study.</p>
+          </div>
+          <button type="button" data-complete-study
+                  class="rounded-lg bg-ink px-3 py-2 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  ${pipelineData.study_completed ? 'disabled' : ''}>
+            ${pipelineData.study_completed ? 'Study completed' : 'Study completed'}
+          </button>
+        </div>
+        <div class="space-y-2" data-participant-roster>
+          ${pipelineData.participants.length ? pipelineData.participants.map(p => `
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface-soft p-3"
+                 data-roster-participant="${p.participant_id}">
+              <div class="min-w-0">
+                <div class="truncate text-[13px] font-semibold text-ink">${p.name || 'Unknown participant'}</div>
+                <div class="mt-1 text-[11px] text-steel" data-attendance-label>
+                  ${p.attendance_status === 'participated' ? 'Participated' : p.attendance_status === 'not_participated' ? 'Not participated' : 'Attendance not marked'}
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button type="button" data-attendance="participated" data-participant-id="${p.participant_id}"
+                        class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${p.attendance_status === 'participated' ? 'bg-ok/15 text-ok' : 'border border-line-hi text-dim'}">
+                  Participated
+                </button>
+                <button type="button" data-attendance="not_participated" data-participant-id="${p.participant_id}"
+                        class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${p.attendance_status === 'not_participated' ? 'bg-danger/10 text-danger' : 'border border-line-hi text-dim'}">
+                  Not participated
+                </button>
+              </div>
+            </div>
+          `).join('') : '<p class="text-[12.5px] text-dim">No participants yet.</p>'}
+        </div>
+      </div>
     </div>
   `;
 
@@ -81,6 +141,38 @@ function renderPipeline(studyId, pipelineData, container) {
 
   // Initialize drag-and-drop
   initializeDragAndDrop(studyId, container);
+  initializeAttendanceControls(studyId, container);
+}
+
+function initializeAttendanceControls(studyId, container) {
+  container.querySelectorAll('[data-attendance]').forEach(button => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        await postPipeline(`/api/v1/studies/${studyId}/pipeline/attendance`, {
+          participant_id: Number(button.dataset.participantId),
+          attendance_status: button.dataset.attendance,
+        });
+        await pipelineTracker.loadPipeline(studyId, container);
+      } catch (error) {
+        alert(error.message);
+        button.disabled = false;
+      }
+    });
+  });
+
+  const completeButton = container.querySelector('[data-complete-study]');
+  completeButton?.addEventListener('click', async () => {
+    if (!confirm('Mark this study as completed? Only participants marked Participated will enter endorsements.')) return;
+    completeButton.disabled = true;
+    try {
+      await postPipeline(`/api/v1/studies/${studyId}/pipeline/complete`);
+      await pipelineTracker.loadPipeline(studyId, container);
+    } catch (error) {
+      alert(error.message);
+      completeButton.disabled = false;
+    }
+  });
 }
 
 function initializeDragAndDrop(studyId, container) {
@@ -119,12 +211,18 @@ function initializeDragAndDrop(studyId, container) {
       const newStage = stageEl.dataset.stage;
 
       try {
+        const xsrfToken = document.cookie
+          .split('; ')
+          .find(cookie => cookie.startsWith('XSRF-TOKEN='))
+          ?.split('=').slice(1).join('=');
+
         const response = await fetch(`/api/v1/studies/${studyId}/pipeline/stage`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json',
+            ...(xsrfToken ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrfToken) } : {}),
           },
           body: JSON.stringify({
             participant_id: parseInt(participantId),
@@ -155,12 +253,18 @@ function initializeDragAndDrop(studyId, container) {
 }
 
 // Initialize when page loads
-document.addEventListener('DOMContentLoaded', () => {
+function initializePipelineTrackers() {
   const pipelineContainers = document.querySelectorAll('[data-pipeline-tracker]');
   pipelineContainers.forEach(container => {
     const studyId = container.dataset.studyId;
     pipelineTracker.loadPipeline(studyId, container);
   });
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializePipelineTrackers, { once: true });
+} else {
+  initializePipelineTrackers();
+}
 
 export default pipelineTracker;

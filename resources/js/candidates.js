@@ -126,14 +126,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var reasons = (candidate.match_reasons || []).join(' · ');
 
-        return '<div class="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">'
+        return '<div class="flex min-w-0 flex-wrap items-start gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">'
             +    avatar(candidate.name)
             +    '<div class="min-w-0 flex-1">'
             +      '<div class="truncate text-[13.5px] font-semibold text-ink">' + esc(candidate.name) + '</div>'
-            +      '<div class="font-mono text-[11px] text-steel">' + esc(meta) + '</div>'
-            +      (reasons ? '<div class="mt-1 text-[11.5px] text-dim">' + esc(reasons) + '</div>' : '')
+            +      '<div class="break-words font-mono text-[11px] text-steel">' + esc(meta) + '</div>'
+            +      (reasons ? '<div class="mt-1 break-words text-[11.5px] text-dim">' + esc(reasons) + '</div>' : '')
             +    '</div>'
-            +    '<div class="flex items-center gap-2">'
+            +    '<div class="flex min-w-0 flex-wrap items-center gap-2 sm:ml-auto">'
             +      badge(candidate.strong_match ? 'expert' : 'gold', candidate.match_score + '%')
             +      ghostLink(candidate.links.profile, 'View profile')
             +      invitationControl(candidate)

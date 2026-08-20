@@ -6,6 +6,7 @@ use App\Enums\PipelineStage;
 use App\Http\Controllers\Controller;
 use App\Models\Study;
 use App\Models\StudyParticipation;
+use App\Enums\StudyStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,10 +34,15 @@ class PipelineApiController extends Controller
                 'name' => $p->participant?->name,
                 'stage' => $p->stage instanceof PipelineStage ? $p->stage->value : (string) $p->stage,
                 'stage_label' => $p->stage instanceof PipelineStage ? $p->stage->label() : (string) $p->stage,
+                'attendance_status' => $p->attendance_status ?? 'pending',
                 'updated_at' => $p->updated_at?->toIso8601String(),
             ]);
 
-        return response()->json(['data' => ['study_id' => $study->id, 'participants' => $rows]], 200);
+        return response()->json(['data' => [
+            'study_id' => $study->id,
+            'study_completed' => $study->completed_at !== null,
+            'participants' => $rows,
+        ]], 200);
     }
 
     /**
@@ -138,5 +144,68 @@ class PipelineApiController extends Controller
                 'updated_at' => $participation->updated_at?->toIso8601String(),
             ],
         ], 200);
+    }
+
+    public function updateAttendance(Request $request, Study $study): JsonResponse
+    {
+        $this->authorizeResearcher($request, $study, 'modify');
+
+        $data = $request->validate([
+            'participant_id' => ['required', 'integer', 'exists:users,id'],
+            'attendance_status' => ['required', 'in:participated,not_participated'],
+        ]);
+
+        $participation = StudyParticipation::where('study_id', $study->id)
+            ->where('participant_id', $data['participant_id'])
+            ->firstOrFail();
+
+        $participation->attendance_status = $data['attendance_status'];
+        $participation->stage = $data['attendance_status'] === 'not_participated'
+            ? PipelineStage::NO_SHOW
+            : ($study->completed_at ? PipelineStage::COMPLETED : $participation->stage);
+        $participation->completed_at = $participation->stage === PipelineStage::COMPLETED ? now() : null;
+        $participation->save();
+
+        return response()->json(['message' => 'Attendance updated.', 'data' => [
+            'participant_id' => $participation->participant_id,
+            'attendance_status' => $participation->attendance_status,
+            'stage' => $participation->stage->value,
+        ]]);
+    }
+
+    public function completeStudy(Request $request, Study $study): JsonResponse
+    {
+        $this->authorizeResearcher($request, $study, 'modify');
+
+        $completedAt = now();
+        $study->update(['completed_at' => $completedAt, 'status' => StudyStatus::CLOSED]);
+
+        $participants = StudyParticipation::with('participant:id,name')
+            ->where('study_id', $study->id)
+            ->where('attendance_status', 'participated')
+            ->get();
+
+        $participants->each(function (StudyParticipation $participation) use ($completedAt) {
+            $participation->update([
+                'stage' => PipelineStage::COMPLETED,
+                'completed_at' => $completedAt,
+            ]);
+        });
+
+        return response()->json(['message' => 'Study marked as completed.', 'data' => [
+            'study_completed' => true,
+            'participants_for_endorsement' => $participants->map(fn ($p) => [
+                'participant_id' => $p->participant_id,
+                'name' => $p->participant?->name,
+            ])->values(),
+        ]]);
+    }
+
+    private function authorizeResearcher(Request $request, Study $study, string $action): void
+    {
+        $user = $request->user();
+
+        abort_unless($user && ($user->id === $study->researcher_id || $user->role?->value === 'admin'), 403,
+            "You are not authorized to {$action} this pipeline.");
     }
 }

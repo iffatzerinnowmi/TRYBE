@@ -61,7 +61,7 @@ Route::prefix('v1')->group(function () {
     */
 
     Route::post('auth/register', [AuthApiController::class, 'register']);
-    Route::post('auth/login',    [AuthApiController::class, 'login']);
+    Route::post('auth/login',    [AuthApiController::class, 'login'])->middleware('web');
 
     // Counts and thresholds for the landing and login pages, which are
     // seen by people who are not logged in. No personal data.
@@ -86,7 +86,7 @@ Route::prefix('v1')->group(function () {
     |----------------------------------------------------------------------
     */
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['web', 'auth:sanctum'])->group(function () {
 
         // ==================================================================
         // MEMBER 1 — Nowmi
@@ -222,6 +222,8 @@ Route::prefix('v1')->group(function () {
         Route::get('studies/{study}/pipeline', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'index']);
         Route::get('studies/{study}/pipeline/stats', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'stats']);
         Route::post('studies/{study}/pipeline/stage', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'updateStage']);
+        Route::post('studies/{study}/pipeline/attendance', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'updateAttendance']);
+        Route::post('studies/{study}/pipeline/complete', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'completeStudy']);
 
         /* Bulk messaging participants by stage */
         Route::post('studies/{study}/messages', [\App\Http\Controllers\Api\V1\MessagingApiController::class, 'sendToStage']);

@@ -26,11 +26,11 @@
     $label = 'block font-mono text-[10px] uppercase tracking-[0.14em] text-steel mb-1';
 @endphp
 
-<div class="mt-4 rounded-xl border border-line bg-surface-soft p-4"
+<div class="mt-4 min-w-0 overflow-hidden rounded-xl border border-line bg-surface-soft p-4"
      data-candidates-panel
      data-study-id="{{ $study->id }}">
 
-    <div class="flex items-center justify-between gap-3">
+    <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
             <div class="font-mono text-[10.5px] uppercase tracking-[0.14em] text-steel">
                 Suggested participants
@@ -38,7 +38,7 @@
             <p class="mt-1 text-[12.5px] text-dim" data-criteria-summary>Loading matches…</p>
         </div>
 
-        <div class="flex shrink-0 items-center gap-2">
+        <div class="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
             <span class="font-mono text-[10.5px] text-steel" data-seat-count></span>
             <button type="button"
                     class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel

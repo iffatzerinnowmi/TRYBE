@@ -128,7 +128,7 @@
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+function initializeLoginForm() {
 
     var form   = document.getElementById('login-form');
     var button = form.querySelector('button[type="submit"]');
@@ -142,14 +142,16 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     /* --- Side-panel numbers, from the public endpoint --- */
-    api.get('/api/v1/platform/stats')
-        .then(function (response) {
-            document.getElementById('stat-unlock').textContent = response.data.unlock_target;
-            document.getElementById('stat-tiers').textContent  = response.data.tier_count;
-        })
-        .catch(function () {
-            // Decoration only. If it fails, logging in still works.
-        });
+    if (window.api) {
+        window.api.get('/api/v1/platform/stats')
+            .then(function (response) {
+                document.getElementById('stat-unlock').textContent = response.data.unlock_target;
+                document.getElementById('stat-tiers').textContent  = response.data.tier_count;
+            })
+            .catch(function () {
+                // Decoration only. If it fails, logging in still works.
+            });
+    }
 
     /* --- Error display helpers --- */
     function showAlert(message) {
@@ -188,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function () {
         button.disabled = true;
         button.textContent = 'Logging in…';
 
-        api.post('/api/v1/auth/login', {
+        window.api.post('/api/v1/auth/login', {
             email:    document.getElementById('email').value,
             password: document.getElementById('password').value,
             remember: document.getElementById('remember').checked,
@@ -209,6 +211,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 button.textContent = 'Log in';
             });
     });
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeLoginForm, { once: true });
+} else {
+    initializeLoginForm();
+}
 </script>
 @endpush

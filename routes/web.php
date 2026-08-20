@@ -19,6 +19,7 @@ use App\Http\Controllers\ResearcherDashboardController;
 use App\Http\Controllers\ResearcherParticipantController;
 use App\Http\Controllers\ResearcherProfileController;
 use App\Http\Controllers\StudyController;
+use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\VerificationController;
 
 /*
@@ -102,6 +103,11 @@ Route::middleware('auth')->group(function () {
     /* ---- Browsing studies ---- */
     Route::get('/studies',          [StudyController::class, 'index'])->name('studies.index');
     Route::get('/studies/{study}',  [StudyController::class, 'show'])->name('studies.show');
+
+    Route::get('/calendar/google/connect/{booking}', [GoogleCalendarController::class, 'connect'])
+        ->name('calendar.google.connect');
+    Route::get('/calendar/google/callback', [GoogleCalendarController::class, 'callback'])
+        ->name('calendar.google.callback');
 
     
 });

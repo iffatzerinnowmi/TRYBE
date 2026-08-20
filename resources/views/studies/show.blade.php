@@ -16,8 +16,8 @@
         <x-alert type="success" class="mb-6">{{ session('status') }}</x-alert>
     @endif
 
-    <div class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-        <x-panel label="Overview" class="reveal">
+    <div class="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <x-panel label="Overview" class="reveal min-w-0 overflow-hidden">
             <div class="space-y-6">
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
@@ -35,28 +35,28 @@
                     <p class="mt-4 text-[13.5px] leading-7 text-dim">{{ $study->description ?? 'No description provided.' }}</p>
                 </div>
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
+                <div class="grid min-w-0 gap-4 sm:grid-cols-2">
+                    <div class="min-w-0 min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Researcher</div>
-                        <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ $study->researcher->name }}</div>
+                        <div class="mt-2 break-words text-[13.5px] font-semibold leading-6 text-ink">{{ $study->researcher->name }}</div>
                     </div>
-                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
+                    <div class="min-w-0 min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Method</div>
-                        <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ ucfirst(str_replace('_', ' ', $study->method)) }}</div>
+                        <div class="mt-2 break-words text-[13.5px] font-semibold leading-6 text-ink">{{ ucfirst(str_replace('_', ' ', $study->method)) }}</div>
                     </div>
-                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
+                    <div class="min-w-0 min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Duration</div>
                         <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ $study->duration_minutes }} minutes</div>
                     </div>
-                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
+                    <div class="min-w-0 min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Slots</div>
                         <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ $study->slots }}</div>
                     </div>
-                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
+                    <div class="min-w-0 min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Compensation</div>
                         <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">৳{{ number_format($study->compensation_amount, 0) }}</div>
                     </div>
-                    <div class="min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
+                    <div class="min-w-0 min-h-[90px] rounded-xl border border-line bg-surface-soft p-4">
                         <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Deadline</div>
                         <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ $study->deadline?->format('M d, Y') ?? 'No deadline' }}</div>
                     </div>
@@ -72,7 +72,7 @@
             </div>
         </x-panel>
 
-        <div class="space-y-6">
+        <div class="min-w-0 space-y-6">
             @if ($user->role?->value === 'participant')
                 <x-panel label="Available sessions" class="reveal reveal-d1" data-slot-panel data-slot-type="participant" data-study-id="{{ $study->id }}">
                     <div class="space-y-3" data-slot-list>

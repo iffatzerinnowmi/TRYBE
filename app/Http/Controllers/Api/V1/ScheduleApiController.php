@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Study;
 use App\Models\StudySlot;
 use App\Models\StudySlotBooking;
+use App\Models\StudyParticipation;
+use App\Enums\PipelineStage;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +26,10 @@ class ScheduleApiController extends Controller
             ->map(function (StudySlot $slot) {
                 $booked = $slot->bookings()->where('status', 'booked')->count();
                 $slot->booked_count = $booked;
+                $currentBooking = $slot->bookings()
+                    ->where('participant_id', auth()->id())
+                    ->where('status', 'booked')
+                    ->first();
 
                 return [
                     'id' => $slot->id,
@@ -35,6 +41,8 @@ class ScheduleApiController extends Controller
                     'remaining' => max(0, $slot->capacity - $booked),
                     'available' => $booked < $slot->capacity,
                     'status' => $booked >= $slot->capacity ? 'full' : 'open',
+                    'booking_id' => $currentBooking?->id,
+                    'google_calendar_event_id' => $currentBooking?->google_calendar_event_id,
                 ];
             });
 
@@ -108,6 +116,11 @@ class ScheduleApiController extends Controller
             'status' => 'booked',
             'booked_at' => now(),
         ]);
+
+        StudyParticipation::updateOrCreate(
+            ['study_id' => $study->id, 'participant_id' => $user->id],
+            ['stage' => PipelineStage::SCHEDULED]
+        );
 
         $slot->update([
             'booked_count' => $slot->fresh()->bookings()->where('status', 'booked')->count(),

@@ -21,6 +21,11 @@ document.addEventListener('DOMContentLoaded', function () {
             list.innerHTML = slots.map(function (slot) {
                 const starts = new Date(slot.starts_at).toLocaleString();
                 const ends = new Date(slot.ends_at).toLocaleString();
+                const calendarAction = slot.booking_id
+                    ? (slot.google_calendar_event_id
+                        ? '<a href="' + slot.google_calendar_event_id + '" target="_blank" rel="noopener" class="font-mono text-[10.5px] text-plum">Open calendar event</a>'
+                        : '<a href="/calendar/google/connect/' + slot.booking_id + '" class="font-mono text-[10.5px] text-plum">Add to Google Calendar</a>')
+                    : '';
                 const button = slot.available
                     ? '<button type="button" data-book-slot="' + slot.id + '" class="rounded-lg bg-plum/12 px-2.5 py-1 font-mono text-[10.5px] text-plum">Book slot</button>'
                     : '<span class="font-mono text-[10.5px] text-flame">Full</span>';
@@ -33,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     + ' <div class="text-right"><div class="font-mono text-[10px] uppercase tracking-[0.14em] text-steel">Seats</div>'
                     + ' <div class="mt-1 text-[13px] font-semibold text-ink">' + slot.remaining + '/' + slot.capacity + '</div></div>'
                     + '</div>'
-                    + '<div class="mt-3 flex justify-end">' + button + '</div>'
+                    + '<div class="mt-3 flex items-center justify-between gap-2">' + calendarAction + button + '</div>'
                     + '</div>';
             }).join('');
         }
@@ -105,8 +110,11 @@ document.addEventListener('DOMContentLoaded', function () {
             button.textContent = 'Booking…';
 
             api.post('/api/v1/studies/' + studyId + '/slots/' + slotId + '/book', {})
-                .then(function () {
-                    status.textContent = 'Slot booked successfully.';
+                .then(function (res) {
+                    const bookingId = res?.data?.booking?.id;
+                    status.innerHTML = bookingId
+                        ? 'Slot booked successfully. <a class="ml-2 font-semibold text-plum hover:underline" href="/calendar/google/connect/' + bookingId + '">Add to Google Calendar</a>'
+                        : 'Slot booked successfully.';
                     loadSlots();
                 })
                 .catch(function (err) {

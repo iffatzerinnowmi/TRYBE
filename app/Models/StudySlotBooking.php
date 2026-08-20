@@ -13,6 +13,7 @@ class StudySlotBooking extends Model
         'participant_id',
         'status',
         'booked_at',
+        'google_calendar_event_id',
     ];
 
     protected $casts = [
