@@ -17,7 +17,7 @@ class User extends Authenticatable {
         'organization_name','organization_type','registration_documents_path',
         'google_calendar_token','google_calendar_refresh_token','google_calendar_token_expires_at',
     ];
-    protected $hidden = ['password','remember_token'];
+        protected $hidden = ['password','remember_token','google_calendar_token','google_calendar_refresh_token'];
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
