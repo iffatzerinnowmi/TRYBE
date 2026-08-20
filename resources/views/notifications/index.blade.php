@@ -6,13 +6,42 @@
 {{--
     API-DRIVEN PAGE — see participant/reliability.blade.php for the pattern.
     NotificationController passes nothing; everything below is fetched.
+
+    ROLE-AWARE WORDING
+    ------------------
+    The heading is the ONLY place the role is read in Blade, and only because
+    a heading cannot wait for a fetch without the page flashing the wrong
+    words first. Everything else — which switches exist, which chips exist —
+    still comes from the API, decided by NotificationService::typesFor().
+
+    data-role is passed to the script for the empty-state sentence, so the
+    page never has to guess.
 --}}
-<div class="wrap pb-16" id="notifications-page">
+@php
+    $pageRole = auth()->user()?->role?->value ?? 'participant';
+
+    $headline = match ($pageRole) {
+        'researcher', 'organization' => 'Never miss a participant who applied.',
+        'admin'                      => 'Nothing on the platform slips past you.',
+        default                      => 'Never miss a study meant for you.',
+    };
+
+    $subline = match ($pageRole) {
+        'researcher', 'organization' =>
+            'Turn on browser notifications and TRYBE pings you the instant something matters — an application lands, a study fills its last seat, or your ethics document clears review.',
+        'admin' =>
+            'Turn on browser notifications and TRYBE pings you when a verification request arrives or a study is flagged for ethics review.',
+        default =>
+            'Turn on browser notifications and TRYBE pings you the instant something matters — an endorsement lands, your verification clears, or you level up a credential tier.',
+    };
+@endphp
+
+<div class="wrap pb-16" id="notifications-page" data-role="{{ $pageRole }}">
 
     <x-page-header
         eyebrow="Notifications"
-        title="Never miss a study meant for you."
-        subtitle="Turn on browser notifications and TRYBE pings you the instant something matters — an endorsement lands, your verification clears, or you level up a credential tier." />
+        :title="$headline"
+        :subtitle="$subline" />
 
     {{-- ================= PUSH STRIP ================= --}}
     <div class="reveal relative my-6 flex flex-wrap items-center gap-5 overflow-hidden rounded-panel
@@ -76,8 +105,10 @@
         </x-panel>
 
         {{-- ================= PREFERENCES ================= --}}
+        {{-- The note has to cover both kinds of row now: switches, and the
+             locked ALWAYS ON rows a researcher sees. --}}
         <x-panel label="What to notify me about"
-                 note="Switch one off and nothing is recorded for it — not stored, not pushed."
+                 note="Switch one off and nothing is recorded for it — not stored, not pushed. A few are marked ALWAYS ON because TRYBE cannot run a study without them."
                  class="reveal reveal-d2">
 
             <div id="pref-list">
@@ -108,6 +139,10 @@ document.addEventListener('DOMContentLoaded', function () {
     /* State the page keeps between renders. */
     var currentFilter = new URLSearchParams(window.location.search).get('filter') || 'all';
     var vapidKey = null;
+
+    /* Set by Blade from the logged-in user, and confirmed by the API on every
+       load. Used only for wording — never to decide what to show. */
+    var pageRole = document.getElementById('notifications-page').dataset.role || 'participant';
 
     function esc(text) {
         return String(text === null || text === undefined ? '' : text)
@@ -171,6 +206,17 @@ document.addEventListener('DOMContentLoaded', function () {
     function emptyMessage(filter) {
         if (filter === 'unread') { return "Nothing here — you're all caught up."; }
         if (filter !== 'all')    { return 'Nothing of this type yet.'; }
+
+        if (pageRole === 'researcher' || pageRole === 'organization') {
+            return 'Nothing yet. Click <b class="text-ink">Send a test</b> above, '
+                 + 'or post a study and wait for your first application.';
+        }
+
+        if (pageRole === 'admin') {
+            return 'Nothing yet. Click <b class="text-ink">Send a test</b> above, '
+                 + 'or wait for a verification request to come in.';
+        }
+
         return 'Nothing yet. Click <b class="text-ink">Send a test</b> above, or get a researcher to endorse you.';
     }
 
@@ -242,36 +288,81 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('feed').innerHTML = html;
     }
 
+    /*
+    | Two kinds of row now:
+    |
+    |   pref.locked === false  a real switch, saved by "Save preferences"
+    |   pref.locked === true   an ALWAYS ON row with no switch at all
+    |
+    | The locked rows are still LISTED. Hiding them would leave a researcher
+    | unable to see that TRYBE is going to email them about applications —
+    | "you cannot turn this off" is information, "this does not exist" is not.
+    |
+    | Locked rows carry no data-pref attribute, which is what keeps them out
+    | of the save payload further down. That is deliberate: the API rejects
+    | them with a 422, so not sending them is the difference between a clean
+    | save and an error toast.
+    |
+    | Every Tailwind class below is a complete literal string. Building one by
+    | concatenation ('bg-' + colour) produces a class Tailwind never compiled,
+    | so the row would render unstyled.
+    */
     function renderPrefs(data) {
         var html = '';
 
         data.preferences.forEach(function (pref) {
+
+            var control = pref.locked
+                ? '<span data-pref-locked="' + esc(pref.key) + '" '
+                +      'class="shrink-0 rounded-full bg-ok/12 px-2.5 py-1 font-mono '
+                +      'text-[9.5px] tracking-wide text-ok">ALWAYS ON</span>'
+
+                : '<input type="checkbox" data-pref="' + esc(pref.key) + '" '
+                +    (pref.enabled ? 'checked ' : '') + 'class="peer sr-only">'
+                + '<span class="relative h-6 w-11 shrink-0 rounded-full bg-steel/45 transition '
+                +      'peer-checked:bg-plum peer-checked:[&>span]:translate-x-5">'
+                +   '<span class="absolute left-[3px] top-[3px] h-[18px] w-[18px] rounded-full bg-white transition"></span>'
+                + '</span>';
+
+            var openTag = pref.locked
+                ? '<div class="flex items-center gap-3.5 border-b border-line py-[15px] last:border-none">'
+                : '<label class="flex cursor-pointer items-center gap-3.5 border-b border-line py-[15px] last:border-none">';
+
+            var closeTag = pref.locked ? '</div>' : '</label>';
+
             html +=
-              '<label class="flex cursor-pointer items-center gap-3.5 border-b border-line py-[15px] last:border-none">'
+              openTag
             +   '<span class="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl '
             +        'bg-surface-soft text-base">' + esc(pref.icon) + '</span>'
             +   '<span class="min-w-0 flex-1">'
             +     '<span class="block text-[13.5px] font-semibold text-ink">' + esc(pref.label) + '</span>'
             +     '<span class="mt-0.5 block text-[12px] leading-relaxed text-dim">' + esc(pref.desc) + '</span>'
             +   '</span>'
-            +   '<input type="checkbox" data-pref="' + esc(pref.key) + '" '
-            +      (pref.enabled ? 'checked ' : '') + 'class="peer sr-only">'
-            +   '<span class="relative h-6 w-11 shrink-0 rounded-full bg-steel/45 transition '
-            +        'peer-checked:bg-plum peer-checked:[&>span]:translate-x-5">'
-            +     '<span class="absolute left-[3px] top-[3px] h-[18px] w-[18px] rounded-full bg-white transition"></span>'
-            +   '</span>'
-            + '</label>';
+            +   control
+            + closeTag;
         });
 
         document.getElementById('pref-list').innerHTML = html;
+
+        /* If this role has nothing it may change — no switches at all — the
+           save button would be a button that can only ever fail. Hide it. */
+        var saveBtn = document.getElementById('save-prefs');
+        saveBtn.style.display = document.querySelectorAll('[data-pref]').length ? '' : 'none';
+
         countPrefs();
     }
 
     function countPrefs() {
-        var boxes = document.querySelectorAll('[data-pref]');
-        var on = 0;
+        var boxes  = document.querySelectorAll('[data-pref]');
+        var locked = document.querySelectorAll('[data-pref-locked]').length;
+
+        /* Locked rows count as enabled, because that is exactly what they
+           are — on, permanently. */
+        var on = locked;
         boxes.forEach(function (b) { if (b.checked) { on++; } });
-        document.getElementById('pref-count').textContent = on + ' of ' + boxes.length + ' enabled';
+
+        document.getElementById('pref-count').textContent =
+            on + ' of ' + (boxes.length + locked) + ' enabled';
     }
 
     /* ---------------------------------------------------------------
@@ -289,6 +380,10 @@ document.addEventListener('DOMContentLoaded', function () {
         return api.get(API + '?filter=' + encodeURIComponent(filter))
             .then(function (response) {
                 var data = response.data;
+
+                /* The API is the authority. Blade only supplied a first
+                   guess so the heading did not flash the wrong words. */
+                pageRole = data.role || pageRole;
 
                 renderChips(data);
                 renderFeed(data);

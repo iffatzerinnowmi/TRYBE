@@ -16,9 +16,10 @@ use Illuminate\Support\Str;
 /**
  * API — Notification centre and Web Push  (Member 1, graded feature)
  *
- * Like the other API controllers, this holds no rules. The five notification
- * types, and the decision about whether a user wants one, live in
- * NotificationService::TYPES. Delivery lives in WebPushService.
+ * Like the other API controllers, this holds no rules. Which types exist,
+ * which role may receive them, and whether a given user wants one all live in
+ * NotificationService. Delivery lives in WebPushService. This file decides
+ * only how the answer is SHAPED for the screen.
  *
  * TWO CONSUMERS
  * -------------
@@ -29,9 +30,16 @@ use Illuminate\Support\Str;
  * page load in the app, so it returns a count and four rows, nothing more.
  * Do not add fields to it without thinking about that cost.
  *
- * A note on the feed: display strings (relative times, icons, filter labels)
- * are built here rather than in JavaScript, so the enums and the service stay
- * the only places those words are written.
+ * ROLE AWARENESS
+ * --------------
+ * Every list this controller builds — the filter chips AND the preference
+ * switches — comes from NotificationService::typesFor($user), never from the
+ * full TYPES constant. That is the only reason a researcher no longer sees a
+ * "Streak reminders" switch that could never fire.
+ *
+ * The feed itself is deliberately NOT role-filtered. If an account's role was
+ * changed, or a notification predates a rule change, it stays readable. The
+ * rules govern what is SENT and what is OFFERED, not what history you may see.
  */
 class NotificationApiController extends Controller
 {
@@ -50,13 +58,17 @@ class NotificationApiController extends Controller
         $user  = $request->user();
         $prefs = $this->prefsFor($user);
 
+        // The types THIS role can receive, already re-worded for that role.
+        $types = NotificationService::typesFor($user);
+
         $base = UserNotification::where('user_id', $user->id);
 
         $total  = (clone $base)->count();
         $unread = (clone $base)->unread()->count();
 
-        // Anything unrecognised falls back to 'all', so a hand-typed URL
-        // cannot produce an error page.
+        // A hand-typed filter must never produce an error page, so anything
+        // unrecognised falls back to 'all'. Note this accepts every type,
+        // not just this role's — see the class comment about history.
         $allowed = array_merge(['all', 'unread'], array_keys(NotificationService::TYPES));
         $filter  = in_array($request->query('filter'), $allowed, true)
             ? $request->query('filter')
@@ -72,13 +84,14 @@ class NotificationApiController extends Controller
             ->take(30)
             ->get();
 
-        // The filter chips, built from the same TYPES list the preferences use.
+        // The filter chips. Built from this role's types, so a researcher is
+        // not offered a Streaks chip that can only ever be empty.
         $filters = [
             ['key' => 'all',    'label' => 'All',    'count' => $total],
             ['key' => 'unread', 'label' => 'Unread', 'count' => $unread],
         ];
 
-        foreach (NotificationService::TYPES as $key => $type) {
+        foreach ($types as $key => $type) {
             $filters[] = [
                 'key'   => $key,
                 'label' => $type['icon'] . ' ' . $this->shortLabel($key),
@@ -86,21 +99,30 @@ class NotificationApiController extends Controller
             ];
         }
 
-        // The preference switches, with their current on/off state.
+        // The preference rows. 'locked' types render as ALWAYS ON instead of
+        // a switch — they are still listed, because hiding them would leave
+        // the researcher unable to see what TRYBE will send them.
         $preferences = [];
 
-        foreach (NotificationService::TYPES as $key => $type) {
+        foreach ($types as $key => $type) {
+            $locked = (bool) $type['always'];
+
             $preferences[] = [
                 'key'     => $key,
                 'icon'    => $type['icon'],
                 'label'   => $type['label'],
                 'desc'    => $type['desc'],
-                'enabled' => (bool) $prefs->{$type['column']},
+                'locked'  => $locked,
+                'enabled' => $locked ? true : (bool) $prefs->{$type['column']},
             ];
         }
 
         return response()->json([
             'data' => [
+                // The page uses this for its empty-state wording, and it is
+                // useful evidence in Postman that the split is real.
+                'role'        => NotificationService::roleOf($user),
+
                 'filter'      => $filter,
                 'filters'     => $filters,
                 'total'       => $total,
@@ -153,12 +175,43 @@ class NotificationApiController extends Controller
      *
      * A partial update: send only the switches you are changing. Anything
      * left out keeps its current value.
+     *
+     * Two things are refused rather than ignored, because silently dropping
+     * a field is how a bug survives a demo:
+     *
+     *   - a type that belongs to another role  ('streak' from a researcher)
+     *   - a type that is 'always'              ('applications')
+     *
+     * Both come back as 422 with the offending keys named.
      */
     public function updatePreferences(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        // Only these may be changed by this account.
+        $controllable = NotificationService::controllableFor($user);
+
+        // Anything sent that is not in that list is a mistake worth naming.
+        // Underscore-prefixed keys (_token, _method) belong to the framework,
+        // not to us, so they are skipped rather than reported.
+        $sent = array_filter(
+            array_keys($request->all()),
+            fn ($key) => ! str_starts_with((string) $key, '_')
+        );
+
+        $rejected = array_values(array_diff($sent, $controllable));
+
+        if ($rejected !== []) {
+            return response()->json([
+                'message' => 'These cannot be changed on a '
+                    . NotificationService::roleOf($user) . ' account: '
+                    . implode(', ', $rejected) . '.',
+            ], 422);
+        }
+
         $rules = [];
 
-        foreach (array_keys(NotificationService::TYPES) as $key) {
+        foreach ($controllable as $key) {
             $rules[$key] = ['sometimes', 'boolean'];
         }
 
@@ -170,7 +223,7 @@ class NotificationApiController extends Controller
             ], 422);
         }
 
-        $prefs  = $this->prefsFor($request->user());
+        $prefs  = $this->prefsFor($user);
         $update = [];
 
         foreach ($values as $key => $on) {
@@ -235,30 +288,47 @@ class NotificationApiController extends Controller
     /**
      * POST /api/v1/notifications/test
      *
-     * Sends yourself one, to prove the whole chain works: preference check,
-     * database write, then the external push service.
+     * Sends yourself one, to prove the whole chain works: role check,
+     * preference check, database write, then the external push service.
+     *
+     * The type used to be hard-coded to 'studies', which meant a researcher
+     * pressing this button tested a participant's notification type. It now
+     * asks the service which type this account would actually receive.
      */
     public function test(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $type = $this->notifications->firstSendableType($user);
+
+        if (! $type) {
+            return response()->json([
+                'message' => 'Every notification type on this account is switched off, so nothing was sent. Turn one on and try again.',
+                'sent'    => false,
+            ], 200);
+        }
+
+        $label = NotificationService::typesFor($user)[$type]['label'];
+
         $notification = $this->notifications->send(
-            $request->user(),
-            'studies',
+            $user,
+            $type,
             'Test notification from TRYBE',
-            'If you can see this in your browser, push is working end to end.',
+            'Sent as "' . $label . '" — the type your ' . NotificationService::roleOf($user)
+                . ' account is set up to receive. If you can see this in your browser, push is working end to end.',
             url('/notifications')
         );
 
         if (! $notification) {
             return response()->json([
-                'message' => 'That type is switched off, so nothing was sent. Turn on "New studies" and try again.',
+                'message' => 'That type is switched off, so nothing was sent.',
                 'sent'    => false,
             ], 200);
         }
 
         return response()->json([
-            'message' => 'Test sent — ' . $notification->push_result . '.',
+            'message' => 'Test sent as "' . $label . '" — ' . $notification->push_result . '.',
             'sent'    => true,
-            'data'    => $this->item($notification, $request->user()),
+            'data'    => $this->item($notification, $user),
         ], 200);
     }
 
@@ -347,12 +417,15 @@ class NotificationApiController extends Controller
     private function shortLabel(string $key): string
     {
         return match ($key) {
-            'studies'    => 'Studies',
-            'verify'     => 'Verification',
-            'endorse'    => 'Endorsements',
-            'streak'     => 'Streaks',
-            'credential' => 'Credentials',
-            default      => ucfirst($key),
+            'studies'      => 'Studies',
+            'verify'       => 'Verification',
+            'endorse'      => 'Endorsements',
+            'streak'       => 'Streaks',
+            'credential'   => 'Credentials',
+            'applications' => 'Applications',
+            'slots'        => 'Recruitment',
+            'irb'          => 'IRB',
+            default        => ucfirst($key),
         };
     }
 
