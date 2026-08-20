@@ -138,10 +138,19 @@ return [
      | — so changing a number here changes what participants are paid and
      | what the page tells them they'll be paid, together, in one place.
      */
-    'karma' => [
+        'karma' => [
         'study_completed'  => env('TRYBE_KARMA_STUDY_COMPLETED', 10),
         'session_on_time'  => env('TRYBE_KARMA_SESSION_ON_TIME', 5),
         'review_left'      => env('TRYBE_KARMA_REVIEW_LEFT', 2),
         'referral_success' => env('TRYBE_KARMA_REFERRAL_SUCCESS', 20),
     ],
+
+        /* ---------------- Section — Verified Payment Escrow (Member 3) ---------------- */
+    'escrow' => [
+        'cancellation_fee_percent' => env('TRYBE_ESCROW_CANCELLATION_FEE_PERCENT', 10),
+        'payout_max_attempts' => env('TRYBE_ESCROW_PAYOUT_MAX_ATTEMPTS', 3),
+        'payout_confirmation_hours' => env('TRYBE_ESCROW_PAYOUT_CONFIRMATION_HOURS', 72),
+        'payout_retry_backoff_minutes' => env('TRYBE_ESCROW_PAYOUT_RETRY_BACKOFF_MINUTES', 30),
+    ],
+
 ];

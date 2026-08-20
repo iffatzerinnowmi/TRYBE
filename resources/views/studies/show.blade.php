@@ -57,6 +57,10 @@
                         <div class="mt-1 text-[13.5px] font-semibold text-ink">{{ $study->deadline?->format('M d, Y') ?? 'No deadline' }}</div>
                     </div>
                 </div>
+                                {{-- FEATURE — Verified Payment Escrow (Member 3) --}}
+                @include('studies.partials.escrow-summary', ['study' => $study])
+
+                {{-- Matching criteria (Member 4)... --}}
 
                 {{-- Matching criteria (Member 4). API-driven: filled by
                      resources/js/study-match.js from the matching endpoints. --}}

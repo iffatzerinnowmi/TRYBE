@@ -17,6 +17,7 @@ use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\ReliabilityController;
 use App\Http\Controllers\ResearcherDashboardController;
 use App\Http\Controllers\ResearcherParticipantController;
+use App\Http\Controllers\ResearcherPaymentController;
 use App\Http\Controllers\ResearcherProfileController;
 use App\Http\Controllers\StudyController;
 use App\Http\Controllers\VerificationController;
@@ -189,6 +190,15 @@ Route::middleware(['auth', 'role:researcher'])->prefix('researcher')->name('rese
        EndorsementController::store(). If you see a 405 on this URL, some
        old Blade form is still pointing at it. */
     Route::get('/endorsements',  [EndorsementController::class, 'index'])->name('endorsements');
+        /* ---- FEATURE — Verified Payment Escrow (Member 3) ---- */
+    Route::get('/payments', [ResearcherPaymentController::class, 'index'])
+        ->name('payments');
+    Route::patch('/payout-settings', [ResearcherPaymentController::class, 'updateSettings'])
+        ->name('payout-settings.update');
+    Route::post('/payouts/{payout}/confirm', [ResearcherPaymentController::class, 'confirmPayout'])
+        ->name('payouts.confirm');
+    Route::post('/payouts/{payout}/retry', [ResearcherPaymentController::class, 'retryPayout'])
+        ->name('payouts.retry');
 
     /* ---- FEATURE — Smart Participant Matching (Member 4, API-DRIVEN) ----
        The candidate profile page. One GET; it fetches
@@ -205,6 +215,7 @@ Route::middleware(['auth', 'role:researcher'])->prefix('researcher')->name('rese
        wildcard sibling shares this prefix. */
     Route::get('/referrals', [ReferralController::class, 'researcher'])
         ->name('referrals');
+    
 
     /* ---- Profile builder ---- */
     Route::get('/profile',             [ResearcherProfileController::class, 'edit'])->name('profile');

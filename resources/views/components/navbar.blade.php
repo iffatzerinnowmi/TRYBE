@@ -45,7 +45,10 @@
             'Endorsements' => '/researcher/endorsements',
             // Member 4 — referral rewards and free post credits.
             'Refer'        => '/researcher/referrals',
+                        //member3- verified payment escrow
+            'Payments'     => '/researcher/payments',
             'Alerts'       => '/notifications',
+
         ],
         'admin' => [
             'Overview' => '/dashboard',

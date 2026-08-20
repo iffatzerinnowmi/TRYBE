@@ -257,6 +257,29 @@ Route::prefix('v1')->group(function () {
             'participants/{user}/unlock-status/recalculate',
             [UnlockApiController::class, 'recalculate']
         );
+                /* ---- Verified Payment Escrow ---- */
+        Route::get('payouts/me', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'mine']);
+        Route::patch(
+            'researchers/me/payout-settings',
+            [\App\Http\Controllers\Api\V1\EscrowApiController::class, 'updatePayoutSettings']
+        );
+
+        Route::get(
+            'studies/{study}/escrow',
+            [\App\Http\Controllers\Api\V1\EscrowApiController::class, 'show']
+        );
+        Route::post(
+            'studies/{study}/escrow/refund',
+            [\App\Http\Controllers\Api\V1\EscrowApiController::class, 'refund']
+        );
+        Route::get(
+            'studies/{study}/payouts',
+            [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'forStudy']
+        );
+
+        Route::get('payouts/{payout}', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'show']);
+        Route::post('payouts/{payout}/confirm', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'confirm']);
+        Route::post('payouts/{payout}/retry', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'retry']);
 
 
 

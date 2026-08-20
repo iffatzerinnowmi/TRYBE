@@ -61,6 +61,14 @@ class NotificationService
             'label'  => 'Paid study access unlocked',
             'desc'   => 'When you complete enough free studies to apply to paid ones.',
         ],
+        'payments' => [
+            'column' => 'notify_payments',
+            'icon'   => '💰',
+            'label'  => 'Payment and payouts',
+            'desc'   => 'Escrow locked, payouts ready to confirm, released, failed, or refunded.',
+
+        ],
+
     ];
 
     /** Has this user switched this type on? Defaults to yes. */

@@ -8,6 +8,8 @@ use App\Enums\StudyStatus;
 use App\Http\Requests\StoreStudyRequest;
 use App\Models\Study;
 use App\Models\StudyParticipation;
+use App\Services\PaymentEscrowService;
+
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,7 +22,11 @@ use Illuminate\Support\Facades\DB;
  *   Volunteer/Unpaid  -> nothing further to collect.
  */
 class StudyController extends Controller
-{
+{   
+    public function __construct(private PaymentEscrowService $escrow)
+    {
+    }
+
     public function index()
     {
         $user = auth()->user();
@@ -157,7 +163,7 @@ class StudyController extends Controller
     public function show(Study $study)
     {
         $user = auth()->user();
-        $study->load('researcher');
+        $study->load('researcher','escrow', 'payouts');
 
         abort_if($user->role?->value === 'researcher' && $study->researcher_id !== $user->id, 403);
 
@@ -197,6 +203,6 @@ class StudyController extends Controller
      */
     private function lockEscrow(Study $study): bool
     {
-        return true;
+        return $this->escrow->lockFunds($study);
     }
 }
