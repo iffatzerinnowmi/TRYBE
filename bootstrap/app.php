@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+                $middleware->validateCsrfTokens(except: [
+            'researcher/sslcommerz/success',
+            'researcher/sslcommerz/fail',
+            'researcher/sslcommerz/cancel',
+        ]);
 
         /*
         |------------------------------------------------------------------

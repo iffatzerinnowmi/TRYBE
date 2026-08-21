@@ -12,6 +12,7 @@ class SimulatedPaymentGateway implements PaymentGateway
 
     public function send(PaymentPayout $payout): array
     {
+        // Simulate a 15% chance of payment failure
         if ((mt_rand(1, 100) / 100) <= self::FAILURE_RATE) {
             return [
                 'success' => false,
@@ -20,6 +21,7 @@ class SimulatedPaymentGateway implements PaymentGateway
             ];
         }
 
+        // Simulate a successful payment
         return [
             'success' => true,
             'reference' => $this->reference($payout->method),
@@ -30,22 +32,33 @@ class SimulatedPaymentGateway implements PaymentGateway
     private function reference(?PayoutMethod $method): string
     {
         $prefix = match ($method) {
-            PayoutMethod::BANK_TRANSFER => 'BT',
-            PayoutMethod::MOBILE_MONEY => 'MM',
-            PayoutMethod::GIFT_CARD => 'GC',
-            default => 'PO',
+            PayoutMethod::BANK_TRANSFER => 'BNK',
+            PayoutMethod::MOBILE_MONEY => 'BKS',
+            default => 'PAY',
         };
 
-        return $prefix.'-'.strtoupper(bin2hex(random_bytes(4)));
+        $random = strtoupper(
+            substr(
+                str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'),
+                0,
+                7
+            )
+        );
+
+        return $prefix . $random;
     }
 
     private function simulatedError(?PayoutMethod $method): string
     {
         return match ($method) {
-            PayoutMethod::BANK_TRANSFER => 'Bank rejected the transfer — account details could not be verified.',
-            PayoutMethod::MOBILE_MONEY => 'Mobile money provider timed out processing the request.',
-            PayoutMethod::GIFT_CARD => 'Gift card provider is temporarily out of inventory for this denomination.',
-            default => 'The payment provider declined the transfer.',
+            PayoutMethod::BANK_TRANSFER =>
+                'Mock bank transfer failed. Please check the account details.',
+
+            PayoutMethod::MOBILE_MONEY =>
+                'Mock bKash payment failed. The payment could not be processed.',
+
+            default =>
+                'Mock payment failed.',
         };
     }
 }

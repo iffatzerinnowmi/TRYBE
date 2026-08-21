@@ -175,7 +175,18 @@ Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('pa
     Route::patch('/profile/account',   [ParticipantProfileController::class, 'updateAccount'])->name('profile.account');
     Route::patch('/profile/password',  [ParticipantProfileController::class, 'updatePassword'])->name('profile.password');
 });
+Route::post('/researcher/sslcommerz/success', [ResearcherPaymentController::class, 'sslcommerzSuccess'])
+    ->middleware(['auth', 'role:researcher'])
+    ->name('researcher.sslcommerz.success');
 
+Route::post('/researcher/sslcommerz/fail', [ResearcherPaymentController::class, 'sslcommerzFail'])
+    ->middleware(['auth', 'role:researcher'])
+    ->name('researcher.sslcommerz.fail');
+
+Route::post('/researcher/sslcommerz/cancel', [ResearcherPaymentController::class, 'sslcommerzCancel'])
+    ->middleware(['auth', 'role:researcher'])
+    ->name('researcher.sslcommerz.cancel');
+    
 
 /* =============================================================================
    RESEARCHER
@@ -193,12 +204,18 @@ Route::middleware(['auth', 'role:researcher'])->prefix('researcher')->name('rese
         /* ---- FEATURE — Verified Payment Escrow (Member 3) ---- */
     Route::get('/payments', [ResearcherPaymentController::class, 'index'])
         ->name('payments');
+
     Route::patch('/payout-settings', [ResearcherPaymentController::class, 'updateSettings'])
         ->name('payout-settings.update');
+
     Route::post('/payouts/{payout}/confirm', [ResearcherPaymentController::class, 'confirmPayout'])
         ->name('payouts.confirm');
+
     Route::post('/payouts/{payout}/retry', [ResearcherPaymentController::class, 'retryPayout'])
         ->name('payouts.retry');
+
+    Route::get('/payouts/{payout}/pay-via-sslcommerz', [ResearcherPaymentController::class, 'payViaSslcommerz'])
+        ->name('payouts.pay-via-sslcommerz');
 
     /* ---- FEATURE — Smart Participant Matching (Member 4, API-DRIVEN) ----
        The candidate profile page. One GET; it fetches

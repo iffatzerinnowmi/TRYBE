@@ -15,6 +15,18 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * FEATURE — Verified Payment Escrow (Member 3)
+ *
+ * The only writer for payment_escrows and payment_payouts.
+ *
+ *   Study created (cash/voucher)    -> lockFunds()
+ *   Participation reaches COMPLETED -> createPayoutForCompletion()
+ *   Payout confirmed (manual/72h)   -> confirmAndRelease() -> applyGatewayResult()
+ *   Payout failed                   -> retryFailed() -> applyGatewayResult()
+ *   bKash checkout callback         -> applyGatewayResult() directly
+ *   Study cancelled                 -> refund()
+ */
 class PaymentEscrowService
 {
     public function __construct(
@@ -86,13 +98,21 @@ class PaymentEscrowService
         $this->notifyResearcher(
             $study->researcher,
             'A payout is ready to confirm',
-            'A participant completed "'.$study->title.'" — confirm the payout or it auto-releases in '.$confirmationHours.'h.',
+            'A participant completed "'.$study->title.'" — confirm the payout via bKash or it auto-releases in '.$confirmationHours.'h.',
             route('researcher.payments')
         );
 
         return $payout;
     }
 
+    /**
+     * Move a pending payout to processing and attempt to send it through
+     * the bound gateway (SimulatedPaymentGateway). Used by the 72h
+     * escrow:auto-confirm command's unattended path — NOT by the manual
+     * "Pay via bKash" button, which goes through BkashPaymentGateway's
+     * createCheckout()/executeCheckout() redirect flow instead and calls
+     * applyGatewayResult() directly once bKash's callback comes back.
+     */
     public function confirmAndRelease(PaymentPayout $payout, string $confirmedBy = 'researcher'): PaymentPayout
     {
         return DB::transaction(function () use ($payout, $confirmedBy) {
@@ -123,10 +143,21 @@ class PaymentEscrowService
         });
     }
 
+    /** Calls the bound gateway (simulated), then finalizes via applyGatewayResult(). */
     private function attemptSend(PaymentPayout $payout): PaymentPayout
     {
-        $result = $this->gateway->send($payout);
+        return $this->applyGatewayResult($payout, $this->gateway->send($payout));
+    }
 
+    /**
+     * Finalizes a payout given an already-known gateway result. Used
+     * internally by attemptSend() (simulated/auto-release path), and
+     * directly by ResearcherPaymentController::bkashCallback() for the
+     * real bKash flow, where the result only becomes available on a
+     * separate request (the callback) rather than synchronously.
+     */
+    public function applyGatewayResult(PaymentPayout $payout, array $result): PaymentPayout
+    {
         if ($result['success']) {
             $payout->update([
                 'status' => PayoutStatus::COMPLETED,
@@ -142,7 +173,7 @@ class PaymentEscrowService
             $this->notifyParticipant(
                 $payout->participant,
                 'Payment released',
-                'Your payout of ৳'.number_format((float) $payout->amount, 0).' has been sent.',
+                'Your payout of ৳'.number_format((float) $payout->amount, 0).' has been sent via bKash.',
                 route('participant.karma')
             );
 
@@ -233,10 +264,10 @@ class PaymentEscrowService
         }
 
         if (is_string($configured)) {
-            return PayoutMethod::tryFrom($configured) ?? PayoutMethod::BANK_TRANSFER;
+            return PayoutMethod::tryFrom($configured) ?? PayoutMethod::BKASH;
         }
 
-        return PayoutMethod::BANK_TRANSFER;
+        return PayoutMethod::BKASH;
     }
 
     private function notifyResearcher(?User $researcher, string $title, string $body, ?string $url = null): void
