@@ -6,7 +6,6 @@ use App\Enums\CredentialLevel;
 use App\Enums\PipelineStage;
 use App\Models\StudyParticipation;
 use App\Services\KarmaService;
-use App\Services\StudyMatchingService;
 
 /**
  * The participant's home screen.
@@ -16,7 +15,7 @@ use App\Services\StudyMatchingService;
  */
 class ParticipantDashboardController extends Controller
 {
-    public function index(StudyMatchingService $matching, KarmaService $karma)
+    public function index(KarmaService $karma)
     {
         $user = auth()->user();
         $profile = $user->participantProfile;
@@ -39,7 +38,12 @@ class ParticipantDashboardController extends Controller
         $current = $profile->credential_level;
         $next = $this->nextTier($current);
 
-        $recommended = $matching->recommendStudiesForParticipant($user, 4);
+        /* ---- Recommended studies (Member 4) used to be built here and
+           passed into the view, which broke team rule 4. The dashboard
+           panel is now API-driven: the partial fetches
+           GET /api/v1/participants/me/feed?limit=4, the same endpoint
+           and the same ranking the full feed page uses. ---- */
+
 
         /* ---- their own applications, newest first ---- */
         $applications = StudyParticipation::query()
@@ -90,7 +94,6 @@ class ParticipantDashboardController extends Controller
             'completedCount',
             'unlockRemaining',
             'next',
-            'recommended',
             'applications',
             'badges',
             'karmaBalance'

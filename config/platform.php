@@ -144,4 +144,59 @@ return [
         'review_left'      => env('TRYBE_KARMA_REVIEW_LEFT', 2),
         'referral_success' => env('TRYBE_KARMA_REFERRAL_SUCCESS', 20),
     ],
+
+    /* ---------------- Section 7 (Member 4) — Study Recommendation Feed ----
+     | The three weights are percentages and MUST add up to 100, so feed_score
+     | is a real percentage and the three contributions reconcile with it.
+     |
+     | WHAT IS DELIBERATELY ABSENT: karma balance, post boosts and researcher
+     | subscription tier. The brief lists all three, but karma measures how
+     | much somebody has ENGAGED, not whether they suit a study, and ranking
+     | research opportunities by an in-app currency is the same mistake as
+     | ranking them by who paid for a boost.
+     |
+     | The split that replaces them:
+     |   match   -> is this PERSON right for this study?  (the eight-factor
+     |              engine: skills, credential, endorsements, completed-study
+     |              topics, reliability, availability, age, location)
+     |   recency -> is this STUDY worth surfacing now?
+     |   urgency -> is this STUDY about to close?
+     |
+     | Nothing about the participant is counted twice, because everything
+     | about the participant already lives inside match_score.
+     */
+    'feed' => [
+        'weights' => [
+            'match'   => env('TRYBE_FEED_W_MATCH', 85),
+            'recency' => env('TRYBE_FEED_W_RECENCY', 10),
+            'urgency' => env('TRYBE_FEED_W_URGENCY', 5),
+        ],
+
+        // A study posted today scores 100 on recency; one posted this many
+        // days ago scores 50; it decays exponentially from there.
+        'recency_half_life_days' => env('TRYBE_FEED_RECENCY_HALFLIFE', 14),
+
+        // Deadlines inside this window score 100 on urgency, tapering to 0
+        // at twice the window. No deadline scores 0.
+        'urgency_window_days' => env('TRYBE_FEED_URGENCY_WINDOW', 7),
+
+        // Studies scoring between this floor and the strong threshold are
+        // "near misses" — the ones the skill-gap coach analyses.
+        'near_miss_floor' => env('TRYBE_FEED_NEAR_MISS_FLOOR', 40),
+
+        'page_size' => env('TRYBE_FEED_PAGE_SIZE', 10),
+
+        // How many manual refreshes of the AI advice per hour, per user.
+        // Here rather than a bare throttle:6,1 in the route file, because
+        // decision.md section 8 says numbers live in config.
+        'advice_refresh_per_hour' => env('TRYBE_FEED_ADVICE_REFRESHES', 6),
+
+        // How many skills the coach may name as gaps.
+        'max_gap_skills' => env('TRYBE_FEED_MAX_GAP_SKILLS', 5),
+
+        // The duration buckets the filter dropdown offers, in minutes.
+        // Here rather than in the service so "add a 45-minute option" is a
+        // config edit with no code change.
+        'duration_buckets' => [15, 30, 60, 120],
+    ],
 ];

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\CredentialLevel;
 use App\Enums\InvitationStatus;
 use App\Enums\UserRole;
+use App\Models\ParticipantProfile;
 use App\Models\Study;
 use App\Models\StudyInvitation;
 use App\Models\StudyMatchCriteria;
@@ -28,6 +29,14 @@ use Illuminate\Support\Str;
  */
 class MatchingTopicsSeeder extends Seeder
 {
+    /**
+     * Participants whose blank profile fields this seeder filled in.
+     * Reported at the end — participant_profiles is Member 1's table, and
+     * even a fill-blanks-only write on the shared database should be visible
+     * rather than discovered.
+     */
+    private array $backfilled = [];
+
     /**
      * Which topics a study category implies. Keyed by the lowercase
      * `category` values already present in the studies table.
@@ -61,8 +70,23 @@ class MatchingTopicsSeeder extends Seeder
     {
         $topics = Topic::all()->keyBy(fn ($t) => $t->slug);
 
+        /*
+        | Running `db:seed --class=MatchingTopicsSeeder` on its own skips the
+        | chain in DatabaseSeeder, so the vocabulary this seeder depends on may
+        | not exist yet. Rather than bail with an instruction, just create it —
+        | TopicSeeder is idempotent (updateOrCreate on slug), so calling it here
+        | is safe whether or not it has already run.
+        */
         if ($topics->isEmpty()) {
-            $this->command?->warn('No topics found — run TopicSeeder first. Skipping.');
+            $this->command?->info('No topics yet — running TopicSeeder first.');
+
+            $this->call(TopicSeeder::class);
+
+            $topics = Topic::all()->keyBy(fn ($t) => $t->slug);
+        }
+
+        if ($topics->isEmpty()) {
+            $this->command?->warn('TopicSeeder produced no topics. Skipping.');
 
             return;
         }
@@ -75,6 +99,7 @@ class MatchingTopicsSeeder extends Seeder
             return;
         }
 
+        $this->backfillMatchableAttributes();
         $this->tagStudies($studies, $topics);
         $this->seedCriteria($studies);
         $this->tagParticipants($topics);
@@ -86,6 +111,78 @@ class MatchingTopicsSeeder extends Seeder
             . DB::table('participant_topics')->count() . ' declared interests, '
             . StudyInvitation::count() . ' invitations.'
         );
+
+        if ($this->backfilled) {
+            $this->command?->warn(
+                'Filled blank age / skills / last_active_week on ' . count($this->backfilled)
+                . ' participant profile(s) so they are matchable. Existing values were not '
+                . 'touched. participant_profiles is Member 1\'s table — tell the group:'
+            );
+            $this->command?->warn('    ' . implode(', ', $this->backfilled));
+        }
+    }
+
+    /**
+     * Fill in the profile attributes matching needs, where they are missing.
+     *
+     * WHY THIS IS HERE
+     * ----------------
+     * DatabaseSeeder's participant() helper sets reliability and credential
+     * data but no age, skills or last_active_week. The candidate query filters
+     * on age, and SQL `WHERE age BETWEEN ...` excludes NULL — so without this,
+     * exactly one seeded participant (Iffat, the only one with an age) is
+     * matchable, and the suggested-candidates list is a list of one.
+     *
+     * ONLY FILLS BLANKS. It never overwrites a value somebody already set, so
+     * running it twice changes nothing and it cannot clobber another member's
+     * demo data. Values are derived from the user id rather than random, so
+     * the demo is identical on every machine.
+     *
+     * These are Member 1's columns and we only write them where they are NULL.
+     * Everything it touches is reported at the end of the run.
+     */
+    private function backfillMatchableAttributes(): void
+    {
+        /*
+        | Drawn from the same vocabulary as skillsFor(), so a participant's
+        | skills and a study's requirements are expressed in the same terms.
+        | When the two lists use different words nothing ever matches, and
+        | every study looks like a near miss for a reason nobody can act on.
+        */
+        $skillSets = [
+            'structured interview, diary logging',
+            'usability testing, think-aloud protocol',
+            'diary logging, wearable device use',
+            'bilingual interviewing, structured interview',
+            'reaction-time tasks, usability testing',
+        ];
+
+        $profiles = ParticipantProfile::whereHas(
+            'user',
+            fn ($q) => $q->where('role', UserRole::PARTICIPANT->value)
+        )->get();
+
+        foreach ($profiles as $profile) {
+            $fill = [];
+
+            if ($profile->age === null) {
+                // 20-37, deterministic, so every machine sees the same demo.
+                $fill['age'] = 20 + ($profile->user_id % 18);
+            }
+
+            if (blank($profile->skills)) {
+                $fill['skills'] = $skillSets[$profile->user_id % count($skillSets)];
+            }
+
+            if ($profile->last_active_week === null) {
+                $fill['last_active_week'] = now()->subDays($profile->user_id % 20);
+            }
+
+            if ($fill) {
+                $profile->update($fill);
+                $this->backfilled[] = $profile->user?->name ?? ('user #' . $profile->user_id);
+            }
+        }
     }
 
     /** Tag every existing study from its category, then its wording. */
@@ -151,15 +248,29 @@ class MatchingTopicsSeeder extends Seeder
         }
     }
 
+    /**
+     * Skills a research PARTICIPANT could plausibly hold — and plausibly go
+     * and acquire.
+     *
+     * These used to include `reading`, `bangla` and `health`, which are
+     * attributes rather than practices. The skill-gap coach reads this column
+     * and advises on how to close the gap, so a vague entry produced advice
+     * like "improving your reading skills will unlock more studies" —
+     * circular, and impossible to act on. Every value here now names a
+     * practice with a first step.
+     *
+     * The real fix is a controlled vocabulary on required_skills; this column
+     * is free text, so a researcher can still type anything.
+     */
     private function skillsFor(string $category): array
     {
         return match ($category) {
-            'usability'  => ['ui testing', 'remote sessions'],
-            'cognition'  => ['python', 'ui testing'],
-            'health'     => ['health', 'survey'],
-            'language'   => ['bangla', 'reading'],
-            'memory'     => ['survey', 'interviews'],
-            default      => ['survey'],
+            'usability'  => ['usability testing', 'think-aloud protocol'],
+            'cognition'  => ['reaction-time tasks', 'usability testing'],
+            'health'     => ['diary logging', 'wearable device use'],
+            'language'   => ['bilingual interviewing', 'structured interview'],
+            'memory'     => ['recall tasks', 'structured interview'],
+            default      => ['structured interview'],
         };
     }
 

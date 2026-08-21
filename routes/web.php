@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CredentialController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FeedController;
 use App\Http\Controllers\EndorsementController;
 use App\Http\Controllers\KarmaController;
 use App\Http\Controllers\NotificationController;
@@ -154,6 +155,13 @@ Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('pa
        redirect-only GET /studies/{study}/invitation they sat beside. */
     Route::get('/invitations', [InvitationController::class, 'index'])
         ->name('invitations');
+
+    /* ---- FEATURE — Study Recommendation Feed (Member 4, API-DRIVEN) ----
+       One GET. The ranked list, the filters and the skill-gap coach all come
+       from /api/v1/participants/me/*. No web POST: refreshing the AI advice
+       is POST /api/v1/participants/me/skill-gap/refresh. */
+    Route::get('/feed', [FeedController::class, 'index'])
+        ->name('feed');
 
     /* ---- FEATURE — Referral system (Member 4, API-DRIVEN) ----
        One GET. The link, progress, referred users and rewards all come from

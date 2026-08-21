@@ -30,7 +30,14 @@
      data-candidates-panel
      data-study-id="{{ $study->id }}">
 
-    <div class="flex items-center justify-between gap-3">
+    {{-- flex-wrap is on the OUTER row on purpose.
+         The button container below is shrink-0, so it never narrows: adding
+         flex-wrap there gives it no reason to wrap and the criteria summary
+         still gets crushed to one word per line. Wrapping has to happen here
+         so the whole button group can drop onto its own line instead.
+         Two buttons became four when Anisa's re-recruit and bulk-message
+         controls merged in, which is what pushed this over the edge. --}}
+    <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="min-w-0">
             <div class="font-mono text-[10.5px] uppercase tracking-[0.14em] text-steel">
                 Suggested participants
@@ -48,14 +55,14 @@
                     class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
                            transition hover:border-plum hover:text-plum"
                     data-refresh-candidates>Refresh</button>
-             <button type="button"
-                  class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
-                      transition hover:border-plum hover:text-plum"
-                  data-rerecruit>Re-recruit past participants</button>
-                 <button type="button"
-                      class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
-                          transition hover:border-plum hover:text-plum"
-                      data-bulk-message-open>Bulk message</button>
+            <button type="button"
+                    class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
+                           transition hover:border-plum hover:text-plum"
+                    data-rerecruit>Re-recruit past participants</button>
+            <button type="button"
+                    class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
+                           transition hover:border-plum hover:text-plum"
+                    data-bulk-message-open>Bulk message</button>
         </div>
     </div>
 

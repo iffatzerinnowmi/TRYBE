@@ -28,6 +28,7 @@
     $links = match ($role) {
         'participant' => [
             'Home'        => '/dashboard',
+            'Feed'        => '/participant/feed',
             'Profile'     => '/participant/profile',
             'Reliability' => '/participant/reliability',
             'Credentials' => '/participant/credentials',

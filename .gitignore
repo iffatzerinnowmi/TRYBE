@@ -24,6 +24,17 @@ Homestead.yaml
 Thumbs.db
 laravel
 colored_changes.diff
-tests/
-docs/
 *_routes.txt
+
+# NOTE: `tests/` and `docs/` used to be ignored here. They are not any more.
+# Ignoring them meant the automated tests and every planning / API document
+# existed on one laptop only and reached nobody on push — which for a graded
+# group project is the opposite of what is wanted.
+#
+# postman/ is still partly ignored: the exported collections contain
+# environment ids and bearer tokens from live sessions. regenerate.py rebuilds
+# them from scratch, so nothing is lost by leaving them out.
+postman/*.json
+
+# local .env backups — never commit
+.env.backup*

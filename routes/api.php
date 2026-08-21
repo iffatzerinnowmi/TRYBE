@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthApiController;
 use App\Http\Controllers\Api\V1\CandidateApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
 use App\Http\Controllers\Api\V1\EndorsementApiController;
+use App\Http\Controllers\Api\V1\FeedApiController;
 use App\Http\Controllers\Api\V1\KarmaApiController;
 use App\Http\Controllers\Api\V1\MatchedStudyApiController;
 use App\Http\Controllers\Api\V1\NotificationApiController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Api\V1\PlatformApiController;
 use App\Http\Controllers\Api\V1\ReferralApiController;
 use App\Http\Controllers\Api\V1\ReRecruitApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
+use App\Http\Controllers\Api\V1\SkillGapApiController;
 use App\Http\Controllers\Api\V1\StudyInvitationApiController;
 use App\Http\Controllers\Api\V1\UnlockApiController;
 use Illuminate\Support\Facades\Route;
@@ -319,6 +321,22 @@ Route::prefix('v1')->group(function () {
             'participants/me/matched-studies',
             [MatchedStudyApiController::class, 'index']
         );
+
+        /* ---- Study Recommendation Feed ----
+           Scoped under participants/me/ for two reasons: it matches every
+           other personal endpoint here, and a bare 'feed' would be a generic
+           noun in a file four people edit — decision.md section 6 warns that
+           Laravel silently uses whichever duplicate registered first. */
+        Route::get('participants/me/feed', [FeedApiController::class, 'index']);
+        Route::get('participants/me/feed/filters', [FeedApiController::class, 'filters']);
+
+        /* ---- The skill-gap coach ----
+           show() NEVER calls the AI provider; it returns stored data only.
+           refresh() is the single endpoint allowed to make an outbound call,
+           and it is throttled from config rather than a bare number here. */
+        Route::get('participants/me/skill-gap', [SkillGapApiController::class, 'show']);
+        Route::post('participants/me/skill-gap/refresh', [SkillGapApiController::class, 'refresh'])
+            ->middleware('throttle:' . config('platform.feed.advice_refresh_per_hour') . ',60');
 
         /* ---- Referral system ----
            Everything is scoped to /me. A referral dashboard is only ever
