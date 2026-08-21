@@ -184,6 +184,26 @@
                         🔒 This amount is locked into escrow the moment you submit — the listing
                         can't go live otherwise.
                     </p>
+
+                    {{-- ================= Limited Seat Auctions (Member 3) ================= --}}
+                    <div id="auction-block" class="mt-4 hidden rounded-xl border border-line-hi bg-surface-soft p-4">
+                        <label for="auction_mode" class="flex cursor-pointer items-start gap-3">
+                            <input type="checkbox" id="auction_mode" name="auction_mode" value="1"
+                                   class="mt-1 h-4 w-4 rounded border-line-hi text-plum focus:ring-plum"
+                                   @checked(old('auction_mode'))>
+                            <span>
+                                <span class="block text-[13px] font-semibold text-ink">🎯 Enable limited seat auction</span>
+                                <span class="mt-1 block text-[12px] leading-relaxed text-dim">
+                                    Seats go to the applicants with the highest reliability scores instead of
+                                    first-come-first-served. Applications close automatically after
+                                    {{ $auctionDurationHours ?? 48 }}h, or once
+                                    {{ $auctionFillMultiplier ?? 3 }}× the slots have applied — whichever comes first.
+                                </span>
+                            </span>
+                        </label>
+                        <p id="auction-ineligible-note" class="mt-2 hidden text-[12px] text-flame"></p>
+                        @error('auction_mode') <p class="mt-1.5 text-[12px] text-danger">{{ $message }}</p> @enderror
+                    </div>
                 </div>
 
                 {{-- Course credit: institution + document --}}
@@ -231,6 +251,42 @@
     var creditBlock = document.getElementById('incentive-credit-block');
     var cards = document.querySelectorAll('.incentive-card');
 
+    // ---- Limited Seat Auctions (Member 3) ----
+    var auctionBlock = document.getElementById('auction-block');
+    var auctionCheckbox = document.getElementById('auction_mode');
+    var auctionNote = document.getElementById('auction-ineligible-note');
+    var slotsInput = document.getElementById('slots');
+    var amountInput = document.getElementById('compensation_amount');
+    var AUCTION_MAX_SLOTS = {{ $auctionMaxSlots ?? 3 }};
+    var AUCTION_MIN_COMPENSATION = {{ $auctionMinCompensation ?? 1000 }};
+
+    function syncAuctionUI() {
+        var selected = document.querySelector('.incentive-radio:checked');
+        var value = selected ? selected.value : null;
+        var isCashOrVoucher = value === 'cash' || value === 'voucher';
+
+        if (!isCashOrVoucher) {
+            auctionBlock.classList.add('hidden');
+            auctionCheckbox.checked = false;
+            return;
+        }
+
+        auctionBlock.classList.remove('hidden');
+
+        var slots = parseInt(slotsInput.value, 10) || 0;
+        var amount = parseFloat(amountInput.value) || 0;
+        var eligible = slots > 0 && slots <= AUCTION_MAX_SLOTS && amount >= AUCTION_MIN_COMPENSATION;
+
+        auctionCheckbox.disabled = !eligible;
+        if (!eligible) { auctionCheckbox.checked = false; }
+
+        auctionNote.classList.toggle('hidden', eligible);
+        if (!eligible) {
+            auctionNote.textContent = 'Needs ' + AUCTION_MAX_SLOTS + ' or fewer slots and at least ৳'
+                + AUCTION_MIN_COMPENSATION + ' compensation to enable an auction.';
+        }
+    }
+
     function syncIncentiveUI() {
         var selected = document.querySelector('.incentive-radio:checked');
         var value = selected ? selected.value : null;
@@ -243,6 +299,8 @@
 
         amountBlock.classList.toggle('hidden', !(value === 'cash' || value === 'voucher'));
         creditBlock.classList.toggle('hidden', value !== 'course_credit');
+
+        syncAuctionUI();
     }
 
     cards.forEach(function (card) {
@@ -251,6 +309,9 @@
             syncIncentiveUI();
         });
     });
+
+    slotsInput.addEventListener('input', syncAuctionUI);
+    amountInput.addEventListener('input', syncAuctionUI);
 
     var fileInput = document.getElementById('course_credit_document');
     if (fileInput) {

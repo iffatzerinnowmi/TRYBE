@@ -152,5 +152,32 @@ return [
         'payout_confirmation_hours' => env('TRYBE_ESCROW_PAYOUT_CONFIRMATION_HOURS', 72),
         'payout_retry_backoff_minutes' => env('TRYBE_ESCROW_PAYOUT_RETRY_BACKOFF_MINUTES', 30),
     ],
+        /* ---------------- Section — Limited Seat Auctions (Member 3) ----------------
+     | SeatAuctionService::isEligible() reads the first two to decide whether a
+     | researcher is even OFFERED the auction-mode toggle:
+     |
+     |   max_slots         study.slots must be <= this to qualify ("3 or fewer
+     |                     available slots").
+     |   min_compensation  study.compensation_amount must be >= this ("above a
+     |                     platform-defined threshold"). Only cash/voucher
+     |                     studies have a compensation_amount, so this also
+     |                     rules out volunteer/course-credit studies.
+     |
+     | Once a study IS in auction mode, these two decide when it closes —
+     | whichever happens first:
+     |
+     |   duration_hours    auction_closes_at = auction_opened_at + this many
+     |                     hours ("closes 48 hours after the listing goes live").
+     |   fill_multiplier   auction closes the moment
+     |                     applications >= slots * fill_multiplier
+     |                     ("or when enough applicants have applied to fill 3x
+     |                     the available slots").
+     */
+    'auction' => [
+        'max_slots'        => env('TRYBE_AUCTION_MAX_SLOTS', 3),
+        'min_compensation' => env('TRYBE_AUCTION_MIN_COMPENSATION', 1000),
+        'duration_hours'   => env('TRYBE_AUCTION_DURATION_HOURS', 48),
+        'fill_multiplier'  => env('TRYBE_AUCTION_FILL_MULTIPLIER', 3),
+    ],
 
 ];

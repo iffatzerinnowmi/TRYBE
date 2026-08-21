@@ -73,6 +73,9 @@
         </x-panel>
 
         <div class="space-y-6">
+            {{-- FEATURE — Limited Seat Auctions (Member 3) --}}
+            @include('studies.partials.auction-panel', ['study' => $study, 'user' => $user])
+                
             @if ($user->role?->value === 'participant')
                 <x-panel label="Available sessions" class="reveal reveal-d1" data-slot-panel data-slot-type="participant" data-study-id="{{ $study->id }}">
                     <div class="space-y-3" data-slot-list>

@@ -280,6 +280,19 @@ Route::prefix('v1')->group(function () {
         Route::get('payouts/{payout}', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'show']);
         Route::post('payouts/{payout}/confirm', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'confirm']);
         Route::post('payouts/{payout}/retry', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'retry']);
+                /* ---- Limited Seat Auctions ---- */
+        Route::get(
+            'studies/{study}/auction',
+            [\App\Http\Controllers\Api\V1\SeatAuctionApiController::class, 'show']
+        );
+        Route::post(
+            'studies/{study}/auction/apply',
+            [\App\Http\Controllers\Api\V1\SeatAuctionApiController::class, 'apply']
+        );
+        Route::post(
+            'studies/{study}/auction/close',
+            [\App\Http\Controllers\Api\V1\SeatAuctionApiController::class, 'close']
+        );
 
 
 

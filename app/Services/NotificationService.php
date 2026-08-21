@@ -66,8 +66,15 @@ class NotificationService
             'icon'   => '💰',
             'label'  => 'Payment and payouts',
             'desc'   => 'Escrow locked, payouts ready to confirm, released, failed, or refunded.',
-
         ],
+        'auction' => [
+            'column' => 'notify_auction',
+            'icon'   => '🎯',
+            'label'  => 'Limited seat auction results',
+            'desc'   => 'When a seat auction you applied to closes and seats are decided.',
+        ],
+
+        
 
     ];
 

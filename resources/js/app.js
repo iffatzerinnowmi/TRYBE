@@ -14,6 +14,8 @@ import './referral-banner';      // "you were invited by X" on the signup page
 
 /* Member 3 — Karma Credits. */
 import './karma';
+/* Member 3 — Limited Seat Auctions. */
+import './seat-auction';
 
 /* Member 2 — Module 2 frontend stubs (loaded only where needed). */
 import './module2/studies';
