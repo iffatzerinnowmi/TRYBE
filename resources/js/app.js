@@ -10,6 +10,7 @@ import './invitations';          // the participant's invitations page
 import './apply';                // Apply to Study button (volunteer studies)
 import './completion';           // My studies page + "complete study" modal
 import './requirements';         // "what this study requires, and what you meet"
+import './competitions';         // competition board + saved competitions
 import './feed';                 // recommendation feed + skill-gap coach
 /* Member 4 — Referral system. */
 import './referrals';            // Refer a Friend (participant + researcher)

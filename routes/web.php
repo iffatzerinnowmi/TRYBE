@@ -7,6 +7,7 @@ use App\Http\Controllers\CredentialController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\EndorsementController;
+use App\Http\Controllers\CompetitionController;
 use App\Http\Controllers\KarmaController;
 use App\Http\Controllers\MyStudiesController;
 use App\Http\Controllers\NotificationController;
@@ -105,6 +106,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/studies',          [StudyController::class, 'index'])->name('studies.index');
     Route::get('/studies/{study}',  [StudyController::class, 'show'])->name('studies.show');
 
+    /* ---- FEATURE — Competition & Hackathon Board (Member 4, API-DRIVEN) ----
+       One GET, open to every signed-in role. The listings come from
+       GET /api/v1/competitions; posting is POST /api/v1/competitions and the
+       form simply does not render for anyone who may not post.
+
+       Note this is /competitions while the participant's saved list is
+       /participant/competitions — different URIs, no collision. */
+    Route::get('/competitions', [CompetitionController::class, 'index'])
+        ->name('competitions.board');
+
     
 });
 
@@ -176,6 +187,13 @@ Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('pa
    backend (study completion, on-time attendance, reviews, referrals). */
     Route::get('/karma', [KarmaController::class, 'index'])
         ->name('karma');
+
+    /* ---- FEATURE — Saved competitions (Member 4, API-DRIVEN) ----
+       One GET. The saved listings and their deadlines come from
+       /api/v1/participants/me/competitions. Unsaving is
+       DELETE /api/v1/competitions/{id}/save — there is no web POST. */
+    Route::get('/competitions', [CompetitionController::class, 'saved'])
+        ->name('competitions');
 
     /* ---- FEATURE — My studies (Member 4, API-DRIVEN) ----
        One GET. The studies the participant is actually in, their stages, and

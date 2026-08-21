@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\ApplyApiController;
 use App\Http\Controllers\Api\V1\AuthApiController;
 use App\Http\Controllers\Api\V1\CandidateApiController;
+use App\Http\Controllers\Api\V1\CompetitionApiController;
 use App\Http\Controllers\Api\V1\CompletionApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
 use App\Http\Controllers\Api\V1\EndorsementApiController;
@@ -398,6 +399,37 @@ Route::prefix('v1')->group(function () {
         Route::get('studies/{study}/completion-claims', [CompletionApiController::class, 'forStudy']);
 
         Route::get('participants/me/completions', [CompletionApiController::class, 'mine']);
+
+        /* ---- Competition & Hackathon Board ----
+           A listing is a POINTER: we do not run competitions, take entries or
+           handle money. Posting is limited to verified researchers,
+           organizations and admins, so every listing has an accountable owner
+           — that is what stands in for link moderation.
+
+           ORDER MATTERS HERE. 'competitions/mine' is a fixed segment and must
+           be registered BEFORE 'competitions/{competition}', or Laravel reads
+           "mine" as a competition id (decision.md §6). */
+        Route::get('competitions', [CompetitionApiController::class, 'index']);
+        Route::get('competitions/mine', [CompetitionApiController::class, 'mine']);
+        Route::post('competitions', [CompetitionApiController::class, 'store']);
+        Route::patch('competitions/{competition}', [CompetitionApiController::class, 'update']);
+        Route::delete('competitions/{competition}', [CompetitionApiController::class, 'destroy']);
+
+        Route::post('competitions/{competition}/save', [CompetitionApiController::class, 'save'])
+            ->middleware('throttle:' . config('platform.competitions.save_rate') . ',1');
+        Route::patch('competitions/{competition}/save', [CompetitionApiController::class, 'updateSave']);
+        Route::delete('competitions/{competition}/save', [CompetitionApiController::class, 'unsave']);
+
+        /* Who else is looking for a team on this listing. Only people who
+           explicitly opted in appear, and email is returned only to a viewer
+           who has opted in too — see CompetitionService::teammatesFor().
+
+           Throttled because it returns contact details: even reciprocal,
+           an unthrottled endpoint is a scraper's best friend. */
+        Route::get('competitions/{competition}/teammates', [CompetitionApiController::class, 'teammates'])
+            ->middleware('throttle:' . config('platform.competitions.save_rate') . ',1');
+
+        Route::get('participants/me/competitions', [CompetitionApiController::class, 'saved']);
 
     });
 });

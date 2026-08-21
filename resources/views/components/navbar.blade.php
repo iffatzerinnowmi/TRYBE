@@ -32,8 +32,10 @@
             'Profile'     => '/participant/profile',
             'Reliability' => '/participant/reliability',
             'Credentials' => '/participant/credentials',
-            // Member 4 — active studies, invitations and Refer a Friend.
+            // Member 4 — active studies, competitions, invitations, referrals.
             'My studies'  => '/participant/studies',
+            'Competitions' => '/competitions',
+            'Saved'       => '/participant/competitions',
             'Invites'     => '/participant/invitations',
             'Refer'       => '/participant/referrals',
             'Alerts'      => '/notifications',
@@ -45,17 +47,20 @@
             'Profile'      => '/researcher/profile',
             'Verification' => '/verification',
             'Endorsements' => '/researcher/endorsements',
-            // Member 4 — referral rewards and free post credits.
+            // Member 4 — competition board (post listings) and referrals.
+            'Competitions' => '/competitions',
             'Refer'        => '/researcher/referrals',
             'Alerts'       => '/notifications',
         ],
         'admin' => [
-            'Overview' => '/dashboard',
-            'Alerts'   => '/notifications',
+            'Overview'     => '/dashboard',
+            'Competitions' => '/competitions',
+            'Alerts'       => '/notifications',
         ],
         'organization' => [
             'Dashboard'    => '/dashboard',
             'Verification' => '/verification',
+            'Competitions' => '/competitions',
             'Alerts'       => '/notifications',
         ],
         default => [

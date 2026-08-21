@@ -267,4 +267,22 @@ return [
         // proper type this becomes a one-line .env change.
         'notification_type' => env('TRYBE_COMPLETION_NOTIFY_TYPE', 'studies'),
     ],
+
+    /* ---------------- Section 7 (Member 4) — Competition board -------------
+     | A listing is a pointer to somewhere else. TRYBE does not run
+     | competitions, take entries or handle money, so there is nothing here
+     | about fees, teams or discounts.
+     */
+    'competitions' => [
+        // How many listings the board shows. Newest first, closed ones hidden.
+        'page_size' => env('TRYBE_COMP_PAGE_SIZE', 24),
+
+        // Deadlines inside this many days render in flame. The single most
+        // useful number on a deadline board, so it is not buried in the view.
+        'closing_soon_days' => env('TRYBE_COMP_CLOSING_SOON', 7),
+
+        // Saves per minute, per user. Saving is cheap, but it is still a
+        // write and an unthrottled one is a way to fill a table with a loop.
+        'save_rate' => env('TRYBE_COMP_SAVE_RATE', 30),
+    ],
 ];
