@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\ApplyApiController;
 use App\Http\Controllers\Api\V1\AuthApiController;
 use App\Http\Controllers\Api\V1\CandidateApiController;
+use App\Http\Controllers\Api\V1\CompletionApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
 use App\Http\Controllers\Api\V1\EndorsementApiController;
 use App\Http\Controllers\Api\V1\FeedApiController;
@@ -323,6 +324,15 @@ Route::prefix('v1')->group(function () {
             [MatchedStudyApiController::class, 'index']
         );
 
+        /* "What does this study require, and which of it do I meet?"
+           Separate from matched-studies because that list excludes studies the
+           participant is already in — so their match detail would vanish the
+           moment they applied, which is exactly when a study page needs it. */
+        Route::get(
+            'studies/{study}/requirements',
+            [MatchedStudyApiController::class, 'requirements']
+        );
+
         /* ---- Study Recommendation Feed ----
            Scoped under participants/me/ for two reasons: it matches every
            other personal endpoint here, and a bare 'feed' would be a generic
@@ -368,6 +378,26 @@ Route::prefix('v1')->group(function () {
         Route::delete('studies/{study}/apply', [ApplyApiController::class, 'destroy']);
 
         Route::get('participants/me/applications', [ApplyApiController::class, 'mine']);
+
+        /* ---- Completing a study (participant side) ----
+           A claim is a STATEMENT, not a completion. Nothing here writes
+           study_participations.stage — that value drives credentials, karma,
+           paid-study progress and referral qualification, so the participant
+           never sets it. The researcher confirms through Member 2's pipeline.
+
+           'completion-claims' is registered before nothing ambiguous, but note
+           the ordering rule anyway: fixed segments before wildcards. */
+        Route::get('studies/{study}/completion', [CompletionApiController::class, 'show']);
+        Route::post('studies/{study}/completion', [CompletionApiController::class, 'store'])
+            ->middleware('throttle:' . config('platform.completion.claims_per_hour') . ',60');
+        Route::patch('studies/{study}/completion/opened', [CompletionApiController::class, 'opened']);
+
+        /* Researcher-facing, read-only. Exists so Member 2's pipeline can show
+           a "claimed complete" marker without joining my table. If she never
+           calls it, nothing of hers changes. */
+        Route::get('studies/{study}/completion-claims', [CompletionApiController::class, 'forStudy']);
+
+        Route::get('participants/me/completions', [CompletionApiController::class, 'mine']);
 
     });
 });

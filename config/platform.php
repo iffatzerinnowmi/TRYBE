@@ -184,6 +184,23 @@ return [
         // "near misses" — the ones the skill-gap coach analyses.
         'near_miss_floor' => env('TRYBE_FEED_NEAR_MISS_FLOOR', 40),
 
+        /* Factors a participant CANNOT change. A study that only falls short
+         | on these is not a near miss worth showing: "you nearly qualified,
+         | but you are the wrong age" is a rebuke with no action attached.
+         |
+         | They still count in match_score — the researcher's criteria are
+         | real — they are just never presented as something to work on.
+         |
+         | In config because it is arguable. Someone can move city, and a
+         | platform operating in one country might treat location as fixed
+         | while an international one would not. */
+        'non_actionable_factors' => ['age', 'location'],
+
+        // How many points must be lost to ACTIONABLE factors before a study
+        // counts as a near miss. Guards against listing a study that is
+        // 0.3 points short on reliability as though it were a gap to close.
+        'min_actionable_loss' => env('TRYBE_FEED_MIN_ACTIONABLE_LOSS', 1.0),
+
         'page_size' => env('TRYBE_FEED_PAGE_SIZE', 10),
 
         // How many manual refreshes of the AI advice per hour, per user.
@@ -214,5 +231,40 @@ return [
         // Whether a participant may withdraw. Only ever possible while the
         // researcher has not acted — see StudyApplicationService::withdraw().
         'allow_withdraw' => env('TRYBE_APPLY_ALLOW_WITHDRAW', true),
+    ],
+
+    /* ---------------- Section 7 (Member 4) — Completing a study ------------
+     | A participant fills in the study's form, then tells us they did. That
+     | is a CLAIM, not a completion: study_participations.stage is what drives
+     | credentials, karma, paid-study progress and referral qualification, and
+     | the participant never writes it. See StudyCompletionService.
+     */
+    'completion' => [
+        // One form for every study, for now. There is no form/link column on
+        // `studies`, and that table belongs to Members 1 and 2 — taking a
+        // column there for this feature would be squatting on their schema.
+        // When per-study forms are needed, the right move is to ask for
+        // studies.completion_form_url and read it with this as the fallback.
+        'form_url' => env('TRYBE_COMPLETION_FORM_URL', 'https://forms.gle/6QaMihis6PCW61bK9'),
+
+        // Optional message to the researcher. Enforced in validation, in the
+        // service when trimming, and as maxlength on the textarea — all three
+        // read this one number.
+        'note_max' => env('TRYBE_COMPLETION_NOTE_MAX', 280),
+
+        // Claims per hour, per user.
+        'claims_per_hour' => env('TRYBE_COMPLETION_RATE', 10),
+
+        // Which pipeline stages a study can be claimed complete from.
+        // "Should `scheduled` count, or only `confirmed`?" is a product
+        // question, not a code one — so it is answered here.
+        'claimable_stages' => ['confirmed', 'scheduled'],
+
+        // NotificationService gates every type on a column in
+        // notification_preferences, which is Member 1's table. There is no
+        // pipeline / completion type yet, so we borrow the closest existing
+        // one rather than adding a column to her schema. When she adds a
+        // proper type this becomes a one-line .env change.
+        'notification_type' => env('TRYBE_COMPLETION_NOTIFY_TYPE', 'studies'),
     ],
 ];

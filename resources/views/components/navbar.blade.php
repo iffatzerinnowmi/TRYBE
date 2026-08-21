@@ -32,7 +32,8 @@
             'Profile'     => '/participant/profile',
             'Reliability' => '/participant/reliability',
             'Credentials' => '/participant/credentials',
-            // Member 4 — study invitations and Refer a Friend.
+            // Member 4 — active studies, invitations and Refer a Friend.
+            'My studies'  => '/participant/studies',
             'Invites'     => '/participant/invitations',
             'Refer'       => '/participant/referrals',
             'Alerts'      => '/notifications',

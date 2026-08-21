@@ -40,9 +40,28 @@ class SkillGapService
     /**
      * Which studies did this participant NEARLY qualify for, and why not?
      *
-     * The near-miss band is [near_miss_floor, strong_threshold). Above the
-     * threshold they already qualify; far below it there is no realistic
-     * advice to give. The interesting set is the studies just out of reach.
+     * THE BAND IS NOT THE WHOLE RULE
+     * ------------------------------
+     * A study is in the band when it scores [near_miss_floor, strong_threshold).
+     * But that alone produces a bad list, because a participant can miss on
+     * things they cannot change. Age and location are fixed facts: telling
+     * somebody "you nearly qualified, but you are the wrong age" is not
+     * coaching, it is a rebuke with no action attached.
+     *
+     * So a study only counts as a near miss when it is losing points on at
+     * least one ACTIONABLE factor — skills, topics, credential level,
+     * reliability, availability, standing. All six of those are things a
+     * participant can move. Age and location are not, and they are listed in
+     * config rather than hardcoded here, because "is location actionable?"
+     * is arguable — someone can move city, and a platform operating in one
+     * country might reasonably treat it as fixed.
+     *
+     * The list is then ordered by ACTIONABLE loss rather than by score, which
+     * is the second half of the fix. Ordering by score puts studies where
+     * nothing is missing at the top — they score highest precisely because
+     * they are missing least — and buries the ones with a real, closeable gap
+     * at the bottom. The point of the list is what to do next, so the study
+     * with the largest closeable gap leads.
      */
     public function analyse(User $user): array
     {
@@ -50,24 +69,29 @@ class SkillGapService
         $threshold = $this->matching->strongThreshold();
         $maxSkills = (int) config('platform.feed.max_gap_skills');
 
+        $fixed   = (array) config('platform.feed.non_actionable_factors', []);
+        $minLoss = (float) config('platform.feed.min_actionable_loss', 1.0);
+
         $profile = $user->participantProfile;
 
         $scored = $this->matching->recommendStudiesForParticipant($user, 50);
 
-        $nearMisses = $scored->filter(
+        $inBand = $scored->filter(
             fn (Study $s) => $s->match_score >= $floor && $s->match_score < $threshold
-        )->values();
+        );
 
-        $missingSkills = [];
-        $missingTopics = [];
-        $blockerCounts = [];
-
-        foreach ($nearMisses as $study) {
+        /*
+        | Work out, per study, how many points are being lost to things the
+        | participant can actually change, and which single factor costs the
+        | most. Studies losing nothing actionable are dropped: they are near
+        | misses on paper and dead ends in practice.
+        */
+        $nearMisses = $inBand->map(function (Study $study) use ($fixed) {
             $factors = $study->match_factors ?? [];
 
-            // Which applicable factor lost the most points on this study?
-            $worst = null;
-            $worstLoss = -1;
+            $worst          = null;
+            $worstLoss      = -1.0;
+            $actionableLoss = 0.0;
 
             foreach ($factors as $key => $factor) {
                 if (! ($factor['applicable'] ?? false)) {
@@ -78,14 +102,38 @@ class SkillGapService
                 $loss = (100 - (float) ($factor['sub_score'] ?? 0))
                         * (float) ($factor['effective_weight'] ?? 0) / 100;
 
+                // Counted in the score, but never held against them here.
+                if (in_array($key, $fixed, true)) {
+                    continue;
+                }
+
+                $actionableLoss += $loss;
+
                 if ($loss > $worstLoss) {
                     $worstLoss = $loss;
-                    $worst = $key;
+                    $worst     = $key;
                 }
             }
 
-            if ($worst) {
-                $blockerCounts[$worst] = ($blockerCounts[$worst] ?? 0) + 1;
+            $study->setAttribute('actionable_loss', round($actionableLoss, 1));
+            $study->setAttribute('blocking_factor', $worst);
+
+            return $study;
+        })
+            ->filter(fn (Study $s) => (float) $s->actionable_loss >= $minLoss)
+            ->sortByDesc('actionable_loss')
+            ->values();
+
+        $missingSkills = [];
+        $missingTopics = [];
+        $blockerCounts = [];
+
+        foreach ($nearMisses as $study) {
+            $factors = $study->match_factors ?? [];
+
+            if ($study->blocking_factor) {
+                $blockerCounts[$study->blocking_factor] =
+                    ($blockerCounts[$study->blocking_factor] ?? 0) + 1;
             }
 
             foreach ($factors['skills']['missing'] ?? [] as $skill) {
@@ -139,6 +187,13 @@ class SkillGapService
                 'title'       => $s->title,
                 'match_score' => $s->match_score,
                 'shortfall'   => round($threshold - $s->match_score, 1),
+
+                // What is actually closeable here, and how much it is worth.
+                // Ordering is by this, not by score — see the docblock.
+                'blocking_factor' => $s->blocking_factor,
+                'actionable_loss' => $s->actionable_loss,
+                'missing_skills'  => array_values($s->match_factors['skills']['missing'] ?? []),
+
                 'url'         => route('studies.show', $s),
             ])->all(),
 

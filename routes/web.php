@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\EndorsementController;
 use App\Http\Controllers\KarmaController;
+use App\Http\Controllers\MyStudiesController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganizationDashboardController;
 use App\Http\Controllers\PageController;
@@ -175,6 +176,14 @@ Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('pa
    backend (study completion, on-time attendance, reviews, referrals). */
     Route::get('/karma', [KarmaController::class, 'index'])
         ->name('karma');
+
+    /* ---- FEATURE — My studies (Member 4, API-DRIVEN) ----
+       One GET. The studies the participant is actually in, their stages, and
+       the completion claims all come from /api/v1/participants/me/*. There is
+       no web POST: claiming completion is
+       POST /api/v1/studies/{study}/completion. */
+    Route::get('/studies', [MyStudiesController::class, 'index'])
+        ->name('studies');
 
     /* ---- Profile builder ---- */
     Route::get('/profile',             [ParticipantProfileController::class, 'edit'])->name('profile');
