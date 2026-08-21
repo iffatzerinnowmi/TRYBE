@@ -71,13 +71,17 @@ class WebPushService
             return 'failed: ' . $e->getMessage();
         }
 
-        // What the service worker in the browser will receive.
+        // What the service worker in the browser will receive. These three key
+        // names are a contract with public/sw.js — it reads data.title,
+        // data.body and data.url. Rename one here and the popup renders blank.
         $payload = json_encode([
             'title' => $notification->icon . '  ' . $notification->title,
             'body'  => $notification->body,
             'url'   => $notification->url ?? url('/notifications'),
         ]);
 
+        // Queue rather than send one at a time: a user with three browsers
+        // gets one flush, not three separate round trips.
         foreach ($subscriptions as $subscription) {
             $webPush->queueNotification(
                 Subscription::create([
@@ -90,9 +94,11 @@ class WebPushService
             );
         }
 
-        $sent = 0;
+        $sent   = 0;
         $failed = 0;
 
+        // flush() is the line where HTTP requests actually leave the server.
+        // Everything above only queued them.
         foreach ($webPush->flush() as $report) {
             if ($report->isSuccess()) {
                 $sent++;
@@ -110,6 +116,20 @@ class WebPushService
 
         PushSubscription::where('user_id', $notification->user_id)
             ->update(['last_used_at' => now()]);
+
+        /*
+        | NotificationService decides the `pushed` flag with
+        | str_starts_with($result, 'sent'). Without this guard, a total
+        | failure returned "sent to 0 browser(s), 2 failed" — a string that
+        | starts with "sent" — so the feed showed a green delivered badge for
+        | a notification that reached nobody.
+        |
+        | This must stay BELOW the flush loop: $sent and $failed do not hold
+        | real counts until every report has been read.
+        */
+        if ($sent === 0) {
+            return "failed: {$failed} browser(s) rejected it";
+        }
 
         return "sent to {$sent} browser(s)" . ($failed ? ", {$failed} failed" : '');
     }
