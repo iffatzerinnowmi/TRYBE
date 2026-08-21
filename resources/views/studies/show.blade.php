@@ -77,7 +77,14 @@
                     <div class="mt-3 text-[12px] text-steel" data-slot-status></div>
                 </x-panel>
 
-                <x-panel label="Your match" class="reveal reveal-d2">
+                {{-- Member 4 — Apply to Study. The partial is empty markup;
+                     every label and disabled state comes from
+                     GET /api/v1/studies/{id}/apply-status. --}}
+                <x-panel label="Apply" class="reveal reveal-d2">
+                    @include('participant.partials.apply-button', ['study' => $study])
+                </x-panel>
+
+                <x-panel label="Your match" class="reveal reveal-d3">
                     <div class="space-y-3 text-[13.5px] text-dim"
                          data-study-match data-study-id="{{ $study->id }}">
                         <p data-match-summary>Loading your match…</p>

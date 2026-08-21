@@ -144,7 +144,7 @@ return [
         'review_left'      => env('TRYBE_KARMA_REVIEW_LEFT', 2),
         'referral_success' => env('TRYBE_KARMA_REFERRAL_SUCCESS', 20),
     ],
-
+    
     /* ---------------- Section 7 (Member 4) — Study Recommendation Feed ----
      | The three weights are percentages and MUST add up to 100, so feed_score
      | is a real percentage and the three contributions reconcile with it.
@@ -198,5 +198,21 @@ return [
         // Here rather than in the service so "add a 45-minute option" is a
         // config edit with no code change.
         'duration_buckets' => [15, 30, 60, 120],
+    ],
+
+        /* ---------------- Section 7 (Member 4) — Apply to Study ----------------
+     | Volunteer studies only for now. There is deliberately NO threshold,
+     | karma cost or application cap here: the whole paid-study allowance is
+     | Member 3's, and duplicating any of her numbers is how a demo ends up
+     | showing 5/5 next to "2 more to go".
+     */
+    'apply' => [
+        // Applications per minute, per user. Throttled because this is a
+        // write that a loop could use to spam every open study.
+        'per_minute' => env('TRYBE_APPLY_RATE', 20),
+
+        // Whether a participant may withdraw. Only ever possible while the
+        // researcher has not acted — see StudyApplicationService::withdraw().
+        'allow_withdraw' => env('TRYBE_APPLY_ALLOW_WITHDRAW', true),
     ],
 ];
