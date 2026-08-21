@@ -3,8 +3,8 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "PATH=/opt/homebrew/bin:/opt/homebrew/sbin:$PATH vite build",
-        "dev": "PATH=/opt/homebrew/bin:/opt/homebrew/sbin:$PATH APP_URL=http://trybe.test vite"
+        "build": "vite build",
+        "dev": "vite"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.3.3",
