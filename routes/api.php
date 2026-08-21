@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\ApplyApiController;
 use App\Http\Controllers\Api\V1\AuthApiController;
 use App\Http\Controllers\Api\V1\CandidateApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
@@ -333,6 +334,22 @@ Route::prefix('v1')->group(function () {
         /* Researcher reward ledger. Earns today; spending it needs Member
            3's tier system, which the payload says out loud. */
         Route::get('researchers/me/post-credits', [ReferralApiController::class, 'postCredits']);
+
+        /* ---- Apply to Study (VOLUNTEER studies only) ----
+           An application is a study_participations row at stage `applied` —
+           no new table, no new column. Member 2's pipeline reads that table
+           by stage, so applications reach her tracker with no change from her.
+
+           Paid studies are refused here with a 422 until Member 3's karma /
+           unlock eligibility surface exists. The refusal is server-side, not
+           just a disabled button: a disabled control is an affordance, and
+           anyone can POST to this route directly. */
+        Route::get('studies/{study}/apply-status', [ApplyApiController::class, 'show']);
+        Route::post('studies/{study}/apply', [ApplyApiController::class, 'store'])
+            ->middleware('throttle:' . config('platform.apply.per_minute') . ',1');
+        Route::delete('studies/{study}/apply', [ApplyApiController::class, 'destroy']);
+
+        Route::get('participants/me/applications', [ApplyApiController::class, 'mine']);
 
     });
 });

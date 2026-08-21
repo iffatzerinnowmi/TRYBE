@@ -1,8 +1,12 @@
 *.log
 .DS_Store
 .env
-.env.backup
+# The pattern below was `.env.backup` — an EXACT match, so a file named
+# .env.backup-before-login-fix was not ignored and got committed with a live
+# API key in it. GitHub's push protection caught it. The wildcard is the fix.
+.env.backup*
 .env.production
+.env.*.local
 .phpactor.json
 .phpunit.result.cache
 /.fleet
