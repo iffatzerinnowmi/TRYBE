@@ -1,0 +1,633 @@
+{
+  "info": {
+    "name": "TRYBE \u2014 REFERRAL LIVE DEMO (Sarah, 23341048)",
+    "description": "Run top to bottom. Open the Postman Console (Ctrl+Alt+C) first \u2014 every step\nprints a readable summary there.\n\nTHE RULE THAT SHAPES THIS DEMO: a reward only counts referrals of the SAME\nrole as the referrer. So the main account is a RESEARCHER and we refer three\nresearchers. Step 5 refers a participant on purpose, to show a mixed pair\nbeing recorded but not counting.\n\nSteps 3-6 send  Cookie: trybe_ref={{refCode}}  which is exactly what the\nbrowser would carry after clicking a referral link.\n\nONE TERMINAL COMMAND sits between step 7 and step 8 \u2014 see step 7.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "refCode",
+      "value": ""
+    },
+    {
+      "key": "me",
+      "value": "sarah.researcher@trybe.test"
+    }
+  ],
+  "item": [
+    {
+      "name": "1 \u00b7 Log in as ME (the referrer)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/auth/login",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "The account whose referral link we are demonstrating. Must be a RESEARCHER for this script, because we refer researchers.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{me}}\",\n    \"password\": \"password\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "if (j.token) { pm.collectionVariables.set('token', j.token); }",
+              "console.log('Logged in as ' + (j.user ? j.user.email : '?'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 \u00b7 My referral link  \u2014 COPY THE CODE",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/referrals/me",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "referrals",
+            "me"
+          ]
+        },
+        "description": "Shows the code, the share URL and current progress. A test script stores the code in {{refCode}} automatically, so steps 3-6 pick it up with no copying."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json().data;",
+              "pm.collectionVariables.set('refCode', d.code);",
+              "console.log('=========================================');",
+              "console.log(' REFERRAL CODE : ' + d.code);",
+              "console.log(' PROGRESS      : ' + d.progress.label);",
+              "console.log(' eligible ' + d.progress.eligible_count + '/' + d.progress.required_to_unlock);",
+              "console.log('=========================================');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 \u00b7 Sign up researcher #1 through my link",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "trybe_ref={{refCode}}"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/auth/register",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "The Cookie header is the whole trick: it is what a browser would carry after clicking the referral link. ReferralAttributionObserver reads it on User::created and writes the referrals row. Note the signup itself knows nothing about referrals \u2014 no field was added to it.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Doctor Demo 1\",\n    \"email\": \"demo.researcher1@trybe.test\",\n    \"phone\": \"01790001001\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role\": \"researcher\",\n    \"location\": \"Dhaka, Bangladesh\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4 \u00b7 Sign up researcher #2 through my link",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "trybe_ref={{refCode}}"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/auth/register",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Same again.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Doctor Demo 2\",\n    \"email\": \"demo.researcher2@trybe.test\",\n    \"phone\": \"01790002002\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role\": \"researcher\",\n    \"location\": \"Dhaka, Bangladesh\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5 \u00b7 Sign up researcher #3 through my link",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "trybe_ref={{refCode}}"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/auth/register",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Third one \u2014 this is the referral that will tip the milestone.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Doctor Demo 3\",\n    \"email\": \"demo.researcher3@trybe.test\",\n    \"phone\": \"01790003003\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role\": \"researcher\",\n    \"location\": \"Dhaka, Bangladesh\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6 \u00b7 Sign up a PARTICIPANT through my link",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "trybe_ref={{refCode}}"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/auth/register",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Deliberately the wrong role. It gets recorded and shown, but it will report counts_towards_reward = false, because the reward is defined only for matching pairs. Without that flag a page could read \"3 of 3\" and pay nothing.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Demo Friend 4\",\n    \"email\": \"demo.participant4@trybe.test\",\n    \"phone\": \"01790004004\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role\": \"participant\",\n    \"location\": \"Dhaka, Bangladesh\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7 \u00b7 Progress BEFORE they do anything",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/referrals/me",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "referrals",
+            "me"
+          ]
+        },
+        "description": "Four referrals recorded, ZERO qualified. Signing up is not enough \u2014 that is the main defence against fake accounts.\n\nNOW RUN THIS IN A TERMINAL:\n\n  php artisan trybe:demo:qualify --referrer=sarah.researcher@trybe.test --no-sync\n\nIt posts a first study for each referred researcher and completes one for the referred participant \u2014 the real actions that qualify them. It does NOT set status=qualified and grants nothing; sync() draws that conclusion in step 8."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json().data;",
+              "console.log('=========================================');",
+              "console.log(' ' + d.progress.label);",
+              "console.log(' qualified        : ' + d.progress.qualified_count);",
+              "console.log(' counts to reward : ' + d.progress.eligible_count +",
+              "            '/' + d.progress.required_to_unlock);",
+              "console.log(' still pending    : ' + d.progress.pending_count);",
+              "console.log(' rewards          : ' + d.rewards.length);",
+              "console.log('=========================================');",
+              "d.referred_users.forEach(function (p) {",
+              "    console.log('  ' + p.name + '  ' + p.status_label +",
+              "                (p.counts_towards_reward ? '' : '   <- different role, does not count'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8 \u00b7 SYNC  \u2014 the reward fires",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/referrals/me/sync",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "referrals",
+            "me",
+            "sync"
+          ]
+        },
+        "description": "granted_now = 1. sync() re-reads live study data, flips the three researcher referrals to qualified, counts 3 eligible, and grants the milestone reward inside a transaction.",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "console.log('granted_now = ' + j.granted_now +",
+              "  (j.granted_now ? '   <-- REWARD FIRED' : '   <-- already granted, idempotent'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9 \u00b7 SYNC AGAIN \u2014 idempotency",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/referrals/me/sync",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "referrals",
+            "me",
+            "sync"
+          ]
+        },
+        "description": "granted_now = 0. Nothing is granted twice. That is enforced by unique(user_id, type, milestone) in the database, not by an if-statement \u2014 which is why it also holds if two requests race.",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "console.log('granted_now = ' + j.granted_now +",
+              "  (j.granted_now ? '   <-- REWARD FIRED' : '   <-- already granted, idempotent'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 \u00b7 Progress AFTER",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/referrals/me",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "referrals",
+            "me"
+          ]
+        },
+        "description": "Three qualified and counting, one qualified but flagged as not counting. The reward is listed."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json().data;",
+              "console.log('=========================================');",
+              "console.log(' ' + d.progress.label);",
+              "console.log(' qualified        : ' + d.progress.qualified_count);",
+              "console.log(' counts to reward : ' + d.progress.eligible_count +",
+              "            '/' + d.progress.required_to_unlock);",
+              "console.log(' still pending    : ' + d.progress.pending_count);",
+              "console.log(' rewards          : ' + d.rewards.length);",
+              "console.log('=========================================');",
+              "d.referred_users.forEach(function (p) {",
+              "    console.log('  ' + p.name + '  ' + p.status_label +",
+              "                (p.counts_towards_reward ? '' : '   <- different role, does not count'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 \u00b7 The reward ledger",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/researchers/me/post-credits",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "researchers",
+            "me",
+            "post-credits"
+          ]
+        },
+        "description": "Balance 1. It is SUM(delta) over a ledger, never a stored column \u2014 so it can always be audited. spending_available is false and says so: nothing consumes a credit yet, because the researcher tier system is Member 3's and does not exist."
+      },
+      "response": []
+    },
+    {
+      "name": "12 \u00b7 The public link check (no token)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:1048/api/v1/referrals/validate/{{refCode}}",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "1048",
+          "path": [
+            "api",
+            "v1",
+            "referrals",
+            "validate",
+            "{{refCode}}"
+          ]
+        },
+        "description": "The only unauthenticated endpoint in either of my features. A guest on the signup page has to call it to see who invited them. It returns one shortened name and nothing else \u2014 no email, no id, no counts.",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "response": []
+    }
+  ]
+}

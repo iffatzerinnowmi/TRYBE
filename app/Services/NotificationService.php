@@ -164,6 +164,12 @@ class NotificationService
                 ],
             ],
         ],
+        'unlock' => [
+            'column' => 'notify_unlock',
+            'icon'   => '🔓',
+            'label'  => 'Paid study access unlocked',
+            'desc'   => 'When you complete enough free studies to apply to paid ones.',
+        ],
     ];
 
     // -----------------------------------------------------------------

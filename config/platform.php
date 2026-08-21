@@ -144,4 +144,145 @@ return [
         'review_left'      => env('TRYBE_KARMA_REVIEW_LEFT', 2),
         'referral_success' => env('TRYBE_KARMA_REFERRAL_SUCCESS', 20),
     ],
+    
+    /* ---------------- Section 7 (Member 4) — Study Recommendation Feed ----
+     | The three weights are percentages and MUST add up to 100, so feed_score
+     | is a real percentage and the three contributions reconcile with it.
+     |
+     | WHAT IS DELIBERATELY ABSENT: karma balance, post boosts and researcher
+     | subscription tier. The brief lists all three, but karma measures how
+     | much somebody has ENGAGED, not whether they suit a study, and ranking
+     | research opportunities by an in-app currency is the same mistake as
+     | ranking them by who paid for a boost.
+     |
+     | The split that replaces them:
+     |   match   -> is this PERSON right for this study?  (the eight-factor
+     |              engine: skills, credential, endorsements, completed-study
+     |              topics, reliability, availability, age, location)
+     |   recency -> is this STUDY worth surfacing now?
+     |   urgency -> is this STUDY about to close?
+     |
+     | Nothing about the participant is counted twice, because everything
+     | about the participant already lives inside match_score.
+     */
+    'feed' => [
+        'weights' => [
+            'match'   => env('TRYBE_FEED_W_MATCH', 85),
+            'recency' => env('TRYBE_FEED_W_RECENCY', 10),
+            'urgency' => env('TRYBE_FEED_W_URGENCY', 5),
+        ],
+
+        // A study posted today scores 100 on recency; one posted this many
+        // days ago scores 50; it decays exponentially from there.
+        'recency_half_life_days' => env('TRYBE_FEED_RECENCY_HALFLIFE', 14),
+
+        // Deadlines inside this window score 100 on urgency, tapering to 0
+        // at twice the window. No deadline scores 0.
+        'urgency_window_days' => env('TRYBE_FEED_URGENCY_WINDOW', 7),
+
+        // Studies scoring between this floor and the strong threshold are
+        // "near misses" — the ones the skill-gap coach analyses.
+        'near_miss_floor' => env('TRYBE_FEED_NEAR_MISS_FLOOR', 40),
+
+        /* Factors a participant CANNOT change. A study that only falls short
+         | on these is not a near miss worth showing: "you nearly qualified,
+         | but you are the wrong age" is a rebuke with no action attached.
+         |
+         | They still count in match_score — the researcher's criteria are
+         | real — they are just never presented as something to work on.
+         |
+         | In config because it is arguable. Someone can move city, and a
+         | platform operating in one country might treat location as fixed
+         | while an international one would not. */
+        'non_actionable_factors' => ['age', 'location'],
+
+        // How many points must be lost to ACTIONABLE factors before a study
+        // counts as a near miss. Guards against listing a study that is
+        // 0.3 points short on reliability as though it were a gap to close.
+        'min_actionable_loss' => env('TRYBE_FEED_MIN_ACTIONABLE_LOSS', 1.0),
+
+        'page_size' => env('TRYBE_FEED_PAGE_SIZE', 10),
+
+        // How many manual refreshes of the AI advice per hour, per user.
+        // Here rather than a bare throttle:6,1 in the route file, because
+        // decision.md section 8 says numbers live in config.
+        'advice_refresh_per_hour' => env('TRYBE_FEED_ADVICE_REFRESHES', 6),
+
+        // How many skills the coach may name as gaps.
+        'max_gap_skills' => env('TRYBE_FEED_MAX_GAP_SKILLS', 5),
+
+        // The duration buckets the filter dropdown offers, in minutes.
+        // Here rather than in the service so "add a 45-minute option" is a
+        // config edit with no code change.
+        'duration_buckets' => [15, 30, 60, 120],
+    ],
+
+        /* ---------------- Section 7 (Member 4) — Apply to Study ----------------
+     | Volunteer studies only for now. There is deliberately NO threshold,
+     | karma cost or application cap here: the whole paid-study allowance is
+     | Member 3's, and duplicating any of her numbers is how a demo ends up
+     | showing 5/5 next to "2 more to go".
+     */
+    'apply' => [
+        // Applications per minute, per user. Throttled because this is a
+        // write that a loop could use to spam every open study.
+        'per_minute' => env('TRYBE_APPLY_RATE', 20),
+
+        // Whether a participant may withdraw. Only ever possible while the
+        // researcher has not acted — see StudyApplicationService::withdraw().
+        'allow_withdraw' => env('TRYBE_APPLY_ALLOW_WITHDRAW', true),
+    ],
+
+    /* ---------------- Section 7 (Member 4) — Completing a study ------------
+     | A participant fills in the study's form, then tells us they did. That
+     | is a CLAIM, not a completion: study_participations.stage is what drives
+     | credentials, karma, paid-study progress and referral qualification, and
+     | the participant never writes it. See StudyCompletionService.
+     */
+    'completion' => [
+        // One form for every study, for now. There is no form/link column on
+        // `studies`, and that table belongs to Members 1 and 2 — taking a
+        // column there for this feature would be squatting on their schema.
+        // When per-study forms are needed, the right move is to ask for
+        // studies.completion_form_url and read it with this as the fallback.
+        'form_url' => env('TRYBE_COMPLETION_FORM_URL', 'https://forms.gle/6QaMihis6PCW61bK9'),
+
+        // Optional message to the researcher. Enforced in validation, in the
+        // service when trimming, and as maxlength on the textarea — all three
+        // read this one number.
+        'note_max' => env('TRYBE_COMPLETION_NOTE_MAX', 280),
+
+        // Claims per hour, per user.
+        'claims_per_hour' => env('TRYBE_COMPLETION_RATE', 10),
+
+        // Which pipeline stages a study can be claimed complete from.
+        // "Should `scheduled` count, or only `confirmed`?" is a product
+        // question, not a code one — so it is answered here.
+        'claimable_stages' => ['confirmed', 'scheduled'],
+
+        // NotificationService gates every type on a column in
+        // notification_preferences, which is Member 1's table. There is no
+        // pipeline / completion type yet, so we borrow the closest existing
+        // one rather than adding a column to her schema. When she adds a
+        // proper type this becomes a one-line .env change.
+        'notification_type' => env('TRYBE_COMPLETION_NOTIFY_TYPE', 'studies'),
+    ],
+
+    /* ---------------- Section 7 (Member 4) — Competition board -------------
+     | A listing is a pointer to somewhere else. TRYBE does not run
+     | competitions, take entries or handle money, so there is nothing here
+     | about fees, teams or discounts.
+     */
+    'competitions' => [
+        // How many listings the board shows. Newest first, closed ones hidden.
+        'page_size' => env('TRYBE_COMP_PAGE_SIZE', 24),
+
+        // Deadlines inside this many days render in flame. The single most
+        // useful number on a deadline board, so it is not buried in the view.
+        'closing_soon_days' => env('TRYBE_COMP_CLOSING_SOON', 7),
+
+        // Saves per minute, per user. Saving is cheap, but it is still a
+        // write and an unthrottled one is a way to fill a table with a loop.
+        'save_rate' => env('TRYBE_COMP_SAVE_RATE', 30),
+    ],
 ];

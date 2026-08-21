@@ -90,10 +90,15 @@
                     </div>
                 @endif
 
-                <div class="mt-4 flex items-center justify-between gap-3">
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div class="font-mono text-[11px] text-steel">৳{{ number_format($study->compensation_amount, 0) }} · {{ $study->slots }} slots</div>
                     <x-btn href="{{ route('studies.show', $study) }}" variant="soft" size="sm">View details</x-btn>
                 </div>
+
+                {{-- Member 4 — apply straight from the listing. One status
+                     request per card; the partial renders nothing for anyone
+                     who is not a participant. --}}
+                @include('participant.partials.apply-button', ['study' => $study])
             </x-panel>
         @empty
             <p class="text-[13.5px] text-dim">No open studies match the selected filters.</p>

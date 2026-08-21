@@ -81,7 +81,26 @@
                     <div class="mt-3 text-[12px] text-steel" data-slot-status></div>
                 </x-panel>
 
-                <x-panel label="Your match" class="reveal reveal-d2">
+                {{-- Member 4 — Apply to Study. The partial is empty markup;
+                     every label and disabled state comes from
+                     GET /api/v1/studies/{id}/apply-status. --}}
+                <x-panel label="Apply" class="reveal reveal-d2">
+                    @include('participant.partials.apply-button', ['study' => $study])
+
+                    {{-- Member 4 — shown only once the researcher has confirmed
+                         them; the endpoint decides, not this template. --}}
+                    @include('participant.partials.complete-button', ['study' => $study])
+                </x-panel>
+
+                {{-- Member 4 — the requirements, and which of them you meet.
+                     Shows both sides of the diff the skill-gap coach reports,
+                     so "you're missing X" is visibly derived rather than
+                     asserted. --}}
+                <x-panel label="What this study needs" class="reveal reveal-d3">
+                    @include('participant.partials.requirements', ['study' => $study])
+                </x-panel>
+
+                <x-panel label="Your match" class="reveal reveal-d4">
                     <div class="space-y-3 text-[13.5px] text-dim"
                          data-study-match data-study-id="{{ $study->id }}">
                         <p data-match-summary>Loading your match…</p>

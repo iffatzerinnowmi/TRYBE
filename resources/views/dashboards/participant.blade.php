@@ -77,50 +77,10 @@
         {{-- ================= LEFT COLUMN ================= --}}
         <div class="space-y-6">
 
-            {{-- Studies they have not applied to yet --}}
-            <x-panel label="Recommended for you" class="reveal reveal-d2">
-                <x-slot:action><a href="/studies">See all →</a></x-slot:action>
-
-                @forelse ($recommended as $study)
-                    <div class="flex items-center gap-4 border-b border-line py-4 last:border-none last:pb-1
-                                {{ $study->strong_match ? 'rounded-xl border border-plum/25 bg-plum/5 px-3.5' : '' }}">
-                        <div class="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl
-                                    border border-line bg-surface-soft text-lg">
-                            {{ $study->incentive_type->requiresEscrow() ? '💵' : '🤝' }}
-                        </div>
-
-                        <div class="min-w-0 flex-1">
-                            <div class="truncate text-[14.5px] font-semibold text-ink">{{ $study->title }}</div>
-                            <div class="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-steel">
-                                <x-badge :tone="$study->incentive_type->requiresEscrow() ? 'ok' : 'neutral'">
-                                    {{ $study->incentive_type->label() }}
-                                    @if ($study->compensation_amount > 0)
-                                        · ৳{{ number_format($study->compensation_amount, 0) }}
-                                    @endif
-                                </x-badge>
-                                <x-badge tone="{{ $study->strong_match ? 'expert' : 'gold' }}">
-                                    Match {{ $study->match_score }}%
-                                </x-badge>
-                                @if ($study->strong_match)
-                                    <x-badge tone="plum">Strong match</x-badge>
-                                @endif
-                                <span>{{ ucfirst(str_replace('_', ' ', $study->method)) }} · {{ $study->duration_minutes }} min</span>
-                            </div>
-                            @if (! empty($study->match_reasons))
-                                <p class="mt-2 text-[11.5px] text-dim">
-                                    {{ implode(' · ', $study->match_reasons) }}
-                                </p>
-                            @endif
-                        </div>
-
-                        <x-btn href="{{ route('studies.show', $study) }}" variant="soft" size="sm">View</x-btn>
-                    </div>
-                @empty
-                    <p class="py-3 text-[13.5px] text-dim">
-                        You've applied to every open study. Check back soon.
-                    </p>
-                @endforelse
-            </x-panel>
+            {{-- Recommended for you (Member 4). API-driven: the partial
+                 ships empty and resources/js/feed.js fills it from
+                 GET /api/v1/participants/me/feed?limit=4 --}}
+            @include('participant.partials.recommended-panel')
 
             {{-- Their own applications --}}
             <x-panel label="Your applications" class="reveal reveal-d3">

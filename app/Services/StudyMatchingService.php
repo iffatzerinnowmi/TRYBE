@@ -441,6 +441,12 @@ class StudyMatchingService
                 $study->setAttribute('strong_match', $assessment['score'] >= $this->strongThreshold());
                 $study->setAttribute('criteria_summary', $this->criteriaSummary($criteria));
 
+                // The study's topics, already bulk-loaded above. Exposed so the
+                // recommendation feed can filter by topic and display them
+                // without a second query per study.
+                $study->setAttribute('topics', $criteria['topics']);
+                $study->setAttribute('topic_ids', $criteria['topic_ids']);
+
                 return $study;
             })
             ->sort(fn (Study $a, Study $b) => [$b->match_score, $b->id] <=> [$a->match_score, $a->id])

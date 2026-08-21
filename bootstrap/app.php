@@ -56,6 +56,34 @@ return Application::configure(basePath: dirname(__DIR__))
         | App\Observers\ReferralAttributionObserver.
         */
         $middleware->appendToGroup('web', \App\Http\Middleware\CaptureReferralCode::class);
+
+        /*
+        |------------------------------------------------------------------
+        | The referral cookie is not encrypted
+        |------------------------------------------------------------------
+        |
+        | It holds a referral CODE, which is public by design — it is printed
+        | in the share URL, shown on the Refer a Friend page, and readable by
+        | anyone through the public validate endpoint. Encrypting it protects
+        | nothing.
+        |
+        | Leaving it in plaintext has two practical benefits:
+        |
+        |   1. API clients can take part in the same attribution flow, by
+        |      sending  Cookie: trybe_ref=<code>. The api middleware group
+        |      does not run EncryptCookies, so an encrypted value would
+        |      arrive undecryptable there and attribution would silently
+        |      fail.
+        |
+        |   2. It is inspectable in devtools, which makes the flow
+        |      demonstrable.
+        |
+        | It grants nothing on its own: the referral is only recorded if the
+        | code resolves to a real user, and every guard in
+        | ReferralService::passesGuards() still applies. Forging one is no
+        | more powerful than clicking somebody's share link.
+        */
+        $middleware->encryptCookies(except: ['trybe_ref']);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(function ($request, $throwable) {

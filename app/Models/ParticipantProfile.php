@@ -10,11 +10,15 @@ class ParticipantProfile extends Model {
         'completed_studies_count','credential_level',
         'current_streak_weeks','longest_streak_weeks','last_active_week',
         'endorsement_count','is_verified_participant',
+        'free_studies_completed','paid_studies_unlocked','paid_studies_unlocked_at',
     ];
     protected $casts = [
         'last_active_week' => 'date',
         'is_verified_participant' => 'boolean',
         'credential_level' => CredentialLevel::class,
+        'paid_studies_unlocked' => 'boolean',
+        'paid_studies_unlocked_at' => 'datetime',
+        'free_studies_completed','paid_studies_unlocked','paid_studies_unlocked_at',
     ];
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
 }
