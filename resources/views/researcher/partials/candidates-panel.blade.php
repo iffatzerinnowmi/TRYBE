@@ -26,11 +26,11 @@
     $label = 'block font-mono text-[10px] uppercase tracking-[0.14em] text-steel mb-1';
 @endphp
 
-<div class="mt-4 rounded-xl border border-line bg-surface-soft p-4"
+<div class="mt-4 min-w-0 overflow-hidden rounded-xl border border-line bg-surface-soft p-4"
      data-candidates-panel
      data-study-id="{{ $study->id }}">
 
-    <div class="flex items-center justify-between gap-3">
+    <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
             <div class="font-mono text-[10.5px] uppercase tracking-[0.14em] text-steel">
                 Suggested participants
@@ -38,7 +38,7 @@
             <p class="mt-1 text-[12.5px] text-dim" data-criteria-summary>Loading matches…</p>
         </div>
 
-        <div class="flex shrink-0 items-center gap-2">
+        <div class="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
             <span class="font-mono text-[10.5px] text-steel" data-seat-count></span>
             <button type="button"
                     class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
@@ -48,6 +48,14 @@
                     class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
                            transition hover:border-plum hover:text-plum"
                     data-refresh-candidates>Refresh</button>
+             <button type="button"
+                  class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
+                      transition hover:border-plum hover:text-plum"
+                  data-rerecruit>Re-recruit past participants</button>
+                 <button type="button"
+                      class="rounded-lg border border-line px-2.5 py-1 font-mono text-[10.5px] text-steel
+                          transition hover:border-plum hover:text-plum"
+                      data-bulk-message-open>Bulk message</button>
         </div>
     </div>
 
@@ -144,5 +152,71 @@
 
     <div class="mt-4 space-y-3" data-candidate-list>
         <p class="text-[12.5px] text-dim">Loading…</p>
+    </div>
+
+    {{-- Re-recruit panel (hidden until requested) --}}
+    <div class="mt-4 hidden rounded-xl border border-line bg-surface p-4" data-rerecruit-panel>
+        <div class="flex items-center justify-between">
+            <div class="font-mono text-[12px] text-steel">Re-recruit past participants</div>
+            <div class="flex items-center gap-2">
+                <button type="button" class="rounded-lg border border-line px-2 py-1 text-[12px]" data-rerecruit-refresh>Refresh</button>
+                <button type="button" class="rounded-lg border border-line px-2 py-1 text-[12px]" data-rerecruit-close>Close</button>
+            </div>
+        </div>
+
+        <p class="mt-3 text-[12px] text-dim">Select past participants to invite again.</p>
+
+        <div class="mt-3 space-y-2" data-rerecruit-list>
+            <p class="text-[12px] text-dim">Loading…</p>
+        </div>
+
+        <div class="mt-3 flex items-center gap-2">
+            <button type="button" class="rounded-lg bg-plum/12 px-3 py-1.5 font-mono text-[11px] text-plum"
+                    data-rerecruit-invite>Invite selected</button>
+            <div class="text-[12px] text-steel" data-rerecruit-status></div>
+        </div>
+    </div>
+
+    {{-- Bulk messaging panel (hidden until requested) --}}
+    <div class="mt-4 hidden rounded-xl border border-line bg-surface p-4" data-bulk-messaging-panel>
+        <div class="flex items-center justify-between">
+            <div class="font-mono text-[12px] text-steel">Send a message to participants by stage</div>
+            <div class="flex items-center gap-2">
+                <button type="button" class="rounded-lg border border-line px-2 py-1 text-[12px]" data-bulk-message-close>Close</button>
+            </div>
+        </div>
+
+        <p class="mt-3 text-[12px] text-dim">Choose which pipeline stage to target and compose your message.</p>
+
+        <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+                <label class="{{ $label }}" for="bulk-stage-{{ $study->id }}">Stage</label>
+                <select id="bulk-stage-{{ $study->id }}" class="{{ $input }}" data-field="stage">
+                    <option value="applied">Applied</option>
+                    <option value="screened">Screened</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="completed">Completed</option>
+                    <option value="no_show">No show</option>
+                    <option value="paid">Paid</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="{{ $label }}" for="bulk-subject-{{ $study->id }}">Subject</label>
+                <input id="bulk-subject-{{ $study->id }}" class="{{ $input }}" data-field="subject" placeholder="Short subject">
+            </div>
+
+            <div class="sm:col-span-2">
+                <label class="{{ $label }}" for="bulk-body-{{ $study->id }}">Message</label>
+                <textarea id="bulk-body-{{ $study->id }}" rows="4" class="{{ $input }}" data-field="body" placeholder="Write your message here"></textarea>
+            </div>
+        </div>
+
+        <div class="mt-4 flex items-center gap-2">
+            <button type="button" class="rounded-lg bg-plum/12 px-3 py-1.5 font-mono text-[11px] text-plum" data-bulk-message-send>Send messages</button>
+            <div class="text-[12px] text-steel" data-bulk-message-status></div>
+        </div>
     </div>
 </div>

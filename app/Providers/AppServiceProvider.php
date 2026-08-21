@@ -7,6 +7,11 @@ use App\Models\User;
 use App\Observers\ReferralAttributionObserver;
 use App\Services\Pipeline\UnavailablePipelineWriter;
 use Illuminate\Support\ServiceProvider;
+// add to the use block at the top
+use App\Models\StudyParticipation;
+use App\Models\StudyReview;
+use App\Observers\StudyParticipationObserver;
+use App\Observers\StudyReviewObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -66,5 +71,7 @@ class AppServiceProvider extends ServiceProvider
         | commands and ordinary signups are unaffected.
         */
         User::observe(ReferralAttributionObserver::class);
+        StudyParticipation::observe(StudyParticipationObserver::class);
+StudyReview::observe(StudyReviewObserver::class);
     }
 }

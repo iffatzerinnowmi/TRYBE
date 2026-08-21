@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CredentialController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EndorsementController;
+use App\Http\Controllers\KarmaController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganizationDashboardController;
 use App\Http\Controllers\PageController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\ResearcherDashboardController;
 use App\Http\Controllers\ResearcherParticipantController;
 use App\Http\Controllers\ResearcherProfileController;
 use App\Http\Controllers\StudyController;
+use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\VerificationController;
 
 /*
@@ -102,6 +104,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/studies',          [StudyController::class, 'index'])->name('studies.index');
     Route::get('/studies/{study}',  [StudyController::class, 'show'])->name('studies.show');
 
+    Route::get('/calendar/google/connect/{booking}', [GoogleCalendarController::class, 'connect'])
+        ->name('calendar.google.connect');
+    Route::get('/calendar/google/callback', [GoogleCalendarController::class, 'callback'])
+        ->name('calendar.google.callback');
+
     
 });
 
@@ -160,6 +167,12 @@ Route::middleware(['auth', 'role:participant'])->prefix('participant')->name('pa
        POST /api/v1/referrals/me/code. */
     Route::get('/referrals', [ReferralController::class, 'index'])
         ->name('referrals');
+    /* ---- FEATURE — Karma Credits (Member 3, API-DRIVEN) ----
+   One GET. Balance, earn rates and the ledger all come from
+   /api/v1/karma/me. No web POST — karma is only ever granted by the
+   backend (study completion, on-time attendance, reviews, referrals). */
+    Route::get('/karma', [KarmaController::class, 'index'])
+        ->name('karma');
 
     /* ---- Profile builder ---- */
     Route::get('/profile',             [ParticipantProfileController::class, 'edit'])->name('profile');

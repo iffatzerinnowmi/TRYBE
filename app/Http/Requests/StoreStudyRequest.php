@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\IncentiveType;
+use App\Enums\CredentialLevel;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -42,6 +43,19 @@ class StoreStudyRequest extends FormRequest
                 Rule::requiredIf(fn () => $this->input('incentive_type') === 'course_credit'),
                 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:4096',
             ],
+
+            /* ---- Optional eligibility criteria (Module 2) ---- */
+            'age_min'           => ['nullable', 'integer', 'between:0,120'],
+            'age_max'           => ['nullable', 'integer', 'between:0,120'],
+            'location'          => ['nullable', 'string', 'max:120'],
+            'credential_min'    => ['nullable', Rule::in(array_column(CredentialLevel::cases(), 'value'))],
+            // Can be submitted as a comma-separated string from the web form
+            // or as an array from a JS client. Normalised in the controller
+            // before being forwarded to the matching API.
+            'required_skills'   => ['nullable'],
+            'availability_days' => ['nullable', 'integer', 'between:1,365'],
+            'topic_ids'         => ['nullable', 'array', 'max:10'],
+            'topic_ids.*'       => ['integer', 'exists:topics,id'],
         ];
     }
 

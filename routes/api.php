@@ -4,10 +4,12 @@ use App\Http\Controllers\Api\V1\AuthApiController;
 use App\Http\Controllers\Api\V1\CandidateApiController;
 use App\Http\Controllers\Api\V1\CredentialApiController;
 use App\Http\Controllers\Api\V1\EndorsementApiController;
+use App\Http\Controllers\Api\V1\KarmaApiController;
 use App\Http\Controllers\Api\V1\MatchedStudyApiController;
 use App\Http\Controllers\Api\V1\NotificationApiController;
 use App\Http\Controllers\Api\V1\PlatformApiController;
 use App\Http\Controllers\Api\V1\ReferralApiController;
+use App\Http\Controllers\Api\V1\ReRecruitApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
 use App\Http\Controllers\Api\V1\StudyInvitationApiController;
 use Illuminate\Support\Facades\Route;
@@ -59,7 +61,7 @@ Route::prefix('v1')->group(function () {
     */
 
     Route::post('auth/register', [AuthApiController::class, 'register']);
-    Route::post('auth/login',    [AuthApiController::class, 'login']);
+    Route::post('auth/login',    [AuthApiController::class, 'login'])->middleware('web');
 
     // Counts and thresholds for the landing and login pages, which are
     // seen by people who are not logged in. No personal data.
@@ -84,7 +86,7 @@ Route::prefix('v1')->group(function () {
     |----------------------------------------------------------------------
     */
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['web', 'auth:sanctum'])->group(function () {
 
         // ==================================================================
         // MEMBER 1 — Nowmi
@@ -186,8 +188,52 @@ Route::prefix('v1')->group(function () {
         // MEMBER 2 — Roza
         // study creation · listings · screener forms · pipelines
         // ==================================================================
+        // Re-recruit past participants: candidate discovery and bulk invites.
+        Route::get(
+            'studies/{study}/rerecruit-candidates',
+            [ReRecruitApiController::class, 'candidates']
+        );
 
-        // (add your routes here)
+        Route::post(
+            'studies/{study}/rerecruit',
+            [ReRecruitApiController::class, 'inviteBulk']
+        );
+
+        /* Study Listing Board (CRUD + filtering) */
+        Route::get('studies', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'index']);
+        Route::get('studies/{study}', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'show']);
+        Route::post('studies', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'store']);
+        Route::patch('studies/{study}', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'update']);
+        Route::delete('studies/{study}', [\App\Http\Controllers\Api\V1\StudyApiController::class, 'destroy']);
+
+        /* Screener Survey Builder (placeholder endpoints) */
+        Route::get('studies/{study}/screeners', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'index']);
+        Route::post('studies/{study}/screeners', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'store']);
+        Route::get('studies/{study}/screeners/{question}', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'show']);
+        Route::patch('studies/{study}/screeners/{question}', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'update']);
+        Route::delete('studies/{study}/screeners/{question}', [\App\Http\Controllers\Api\V1\ScreenerApiController::class, 'destroy']);
+
+        /* Slot Scheduling (placeholder endpoints) */
+        Route::get('studies/{study}/slots', [\App\Http\Controllers\Api\V1\ScheduleApiController::class, 'index']);
+        Route::post('studies/{study}/slots', [\App\Http\Controllers\Api\V1\ScheduleApiController::class, 'store']);
+        Route::post('studies/{study}/slots/{slot}/book', [\App\Http\Controllers\Api\V1\ScheduleApiController::class, 'book']);
+
+        /* Participant Pipeline Tracker */
+        Route::get('studies/{study}/pipeline', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'index']);
+        Route::get('studies/{study}/pipeline/stats', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'stats']);
+        Route::post('studies/{study}/pipeline/stage', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'updateStage']);
+        Route::post('studies/{study}/pipeline/attendance', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'updateAttendance']);
+        Route::post('studies/{study}/pipeline/complete', [\App\Http\Controllers\Api\V1\PipelineApiController::class, 'completeStudy']);
+
+        /* Bulk messaging participants by stage */
+        Route::post('studies/{study}/messages', [\App\Http\Controllers\Api\V1\MessagingApiController::class, 'sendToStage']);
+
+        /* Session notes & tagging */
+        Route::get('participants/{participant}/notes', [\App\Http\Controllers\Api\V1\NotesApiController::class, 'index']);
+        Route::post('participants/{participant}/notes', [\App\Http\Controllers\Api\V1\NotesApiController::class, 'store']);
+
+        /* Researcher tier info */
+        Route::get('researchers/me/tier', [\App\Http\Controllers\Api\V1\TierApiController::class, 'myTier']);
 
 
         // ==================================================================
@@ -195,7 +241,15 @@ Route::prefix('v1')->group(function () {
         // karma · payments · escrow · free-to-paid unlock
         // ==================================================================
 
-        // (add your routes here)
+        /* ---- Karma Credits System ----
+           Everything is scoped to /me, same reasoning as /referrals/me: a
+           karma balance is only ever your own, so there is no {user} to
+           authorise. */
+        Route::get('karma/me', [KarmaApiController::class, 'me']);
+        Route::get('karma/me/transactions', [KarmaApiController::class, 'transactions']);
+    
+
+
 
 
         // ==================================================================

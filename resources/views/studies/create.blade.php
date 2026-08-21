@@ -45,6 +45,48 @@
                     </div>
 
                     <div>
+                        <label class="mb-2 block text-[13px] font-semibold text-ink">Eligibility (optional)</label>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <label for="age_min" class="mb-1 block text-[13px] text-dim">Minimum age</label>
+                                <input type="number" min="0" max="120" id="age_min" name="age_min" value="{{ old('age_min') }}"
+                                       class="{{ $input }} {{ $errors->has('age_min') ? 'border-danger' : 'border-line-hi' }}">
+                                @error('age_min') <p class="mt-1.5 text-[12px] text-danger">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <label for="age_max" class="mb-1 block text-[13px] text-dim">Maximum age</label>
+                                <input type="number" min="0" max="120" id="age_max" name="age_max" value="{{ old('age_max') }}"
+                                       class="{{ $input }} {{ $errors->has('age_max') ? 'border-danger' : 'border-line-hi' }}">
+                                @error('age_max') <p class="mt-1.5 text-[12px] text-danger">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <label for="location" class="mb-1 block text-[13px] text-dim">Location</label>
+                                <input type="text" id="location" name="location" value="{{ old('location') }}"
+                                       class="{{ $input }} {{ $errors->has('location') ? 'border-danger' : 'border-line-hi' }}">
+                                @error('location') <p class="mt-1.5 text-[12px] text-danger">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <label for="availability_days" class="mb-1 block text-[13px] text-dim">Availability (days)</label>
+                                <input type="number" min="1" max="365" id="availability_days" name="availability_days" value="{{ old('availability_days') }}"
+                                       class="{{ $input }} {{ $errors->has('availability_days') ? 'border-danger' : 'border-line-hi' }}">
+                                @error('availability_days') <p class="mt-1.5 text-[12px] text-danger">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <label for="required_skills" class="mb-1 block text-[13px] text-dim">Required skills (comma separated)</label>
+                                <input type="text" id="required_skills" name="required_skills" value="{{ old('required_skills') }}"
+                                       placeholder="e.g. R, survey design, qualitative analysis"
+                                       class="{{ $input }} {{ $errors->has('required_skills') ? 'border-danger' : 'border-line-hi' }}">
+                                <p class="mt-1 text-[12px] text-dim">Enter skills separated by commas; they'll be normalised.</p>
+                                @error('required_skills') <p class="mt-1.5 text-[12px] text-danger">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
                         <label for="description" class="mb-2 block text-[13px] font-semibold text-ink">Description</label>
                         <textarea id="description" name="description" rows="4"
                                   placeholder="What will participants actually do?"
