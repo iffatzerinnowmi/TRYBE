@@ -2,10 +2,12 @@
 
 namespace App\Observers;
 
+use App\Enums\IncentiveType;
 use App\Enums\KarmaSource;
 use App\Enums\PipelineStage;
 use App\Models\StudyParticipation;
 use App\Services\KarmaService;
+use App\Services\FreeToPaidUnlockService;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -16,7 +18,10 @@ use Illuminate\Support\Facades\Log;
  */
 class StudyParticipationObserver
 {
-    public function __construct(private KarmaService $karma) {}
+    public function __construct(
+        private KarmaService $karma,
+        private FreeToPaidUnlockService $unlock,
+    ) {}
 
     public function updated(StudyParticipation $p): void { $this->awardIfJustCompleted($p); }
     public function created(StudyParticipation $p): void { $this->awardIfJustCompleted($p); }
@@ -41,6 +46,16 @@ class StudyParticipationObserver
             Log::warning('Karma award for study completion failed.', [
                 'participation_id' => $participation->id, 'error' => $e->getMessage(),
             ]);
+        }
+
+        if ($participation->study?->incentive_type === IncentiveType::VOLUNTEER) {
+            try {
+                $this->unlock->recordVolunteerCompletion($participation->participant);
+            } catch (\Throwable $e) {
+                Log::warning('Volunteer cycle update failed.', [
+                    'participation_id' => $participation->id, 'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }

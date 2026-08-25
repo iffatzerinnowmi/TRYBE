@@ -169,6 +169,7 @@ class ResearcherPaymentController extends Controller
             default => 'bKash payment failed: '.$payout->last_error,
         });
     }
+    // researcher can pay via ssl
 
     /** GET /researcher/payouts/{payout}/pay-via-sslcommerz — the primary "Pay" button action */
     public function payViaSslcommerz(PaymentPayout $payout, SslcommerzPaymentGateway $sslcommerz): RedirectResponse

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\KarmaApiController;
 use App\Http\Controllers\Api\V1\MatchedStudyApiController;
 use App\Http\Controllers\Api\V1\NotificationApiController;
 use App\Http\Controllers\Api\V1\PlatformApiController;
+use App\Http\Controllers\Api\V1\PaidApplicationApiController;
 use App\Http\Controllers\Api\V1\ReferralApiController;
 use App\Http\Controllers\Api\V1\ReRecruitApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
@@ -293,6 +294,18 @@ Route::prefix('v1')->group(function () {
             'studies/{study}/auction/close',
             [\App\Http\Controllers\Api\V1\SeatAuctionApiController::class, 'close']
         );
+        /* ---- Paid applications (Feature B — Karma alternate unlock) ----
+   GET returns the eligibility snapshot the Apply button is built from.
+   POST spends a free or Karma-bought slot and creates the application,
+   atomically, inside FreeToPaidUnlockService::applyToPaidStudy(). */
+Route::get(
+    'studies/{study}/paid-application',
+    [PaidApplicationApiController::class, 'eligibility']
+);
+Route::post(
+    'studies/{study}/paid-application',
+    [PaidApplicationApiController::class, 'apply']
+);
 
 
 

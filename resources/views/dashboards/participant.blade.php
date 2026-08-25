@@ -45,32 +45,42 @@
             </a>
         </x-stat-card>
     </div>
-
     {{-- ---------- unlock progress ---------- --}}
-    <div class="reveal reveal-d2 my-6 flex flex-wrap items-center gap-6 rounded-panel border border-line
-                bg-surface px-7 py-5 shadow-soft">
-        <div class="min-w-[240px] flex-1">
-            <b class="text-ink">{{ min($completedCount, $unlockTarget) }} of {{ $unlockTarget }}</b>
-            <span class="text-ink"> volunteer studies completed</span>
-            <p class="mt-1 text-[13px] text-dim">
-                @if ($unlockRemaining > 0)
-                    Complete {{ $unlockRemaining }} more to unlock paid studies.
-                @else
-                    Paid studies are unlocked for your account.
-                @endif
-            </p>
-        </div>
-
-        <div class="flex min-w-[220px] flex-[2] gap-1.5">
-            @for ($i = 0; $i < $unlockTarget; $i++)
-                <div class="h-2.5 flex-1 rounded-full {{ $i < $completedCount ? 'bg-ok' : 'bg-steel/25' }}"></div>
-            @endfor
-        </div>
-
-        <div class="whitespace-nowrap font-mono text-[12.5px] text-plum">
-            {{ $completedCount }} / {{ $unlockTarget }}
-        </div>
+<div class="reveal reveal-d2 my-6 flex flex-wrap items-center gap-6 rounded-panel border border-line
+            bg-surface px-7 py-5 shadow-soft">
+    <div class="min-w-60 flex-1">
+        <b class="text-ink">{{ min($completedCount, $unlockTarget) }} of {{ $unlockTarget }}</b>
+        <span class="text-ink"> volunteer studies completed</span>
+        <p class="mt-1 text-[13px] text-dim">
+            @if ($unlock['can_apply_paid'])
+                Paid slots unlocked — {{ $unlock['paid_remaining'] }} of {{ $unlock['paid_slots'] }} left to use.
+            @else
+                Complete {{ $unlockRemaining }} more to unlock {{ $unlock['paid_slots'] }} paid applications.
+            @endif
+        </p>
     </div>
+
+    <div class="flex min-w-55 flex-2 gap-1.5">
+        @for ($i = 0; $i < $unlockTarget; $i++)
+            <div class="h-2.5 flex-1 rounded-full {{ $i < $completedCount ? 'bg-ok' : 'bg-steel/25' }}"></div>
+        @endfor
+    </div>
+
+    <div class="whitespace-nowrap font-mono text-[12.5px] text-plum">
+        {{ $completedCount }} / {{ $unlockTarget }}
+    </div>
+</div>
+
+    <div class="flex min-w-[220px] flex-2 gap-1.5">
+        @for ($i = 0; $i < $unlockTarget; $i++)
+            <div class="h-2.5 flex-1 rounded-full {{ $i < $completedCount ? 'bg-ok' : 'bg-steel/25' }}"></div>
+        @endfor
+    </div>
+
+    <div class="whitespace-nowrap font-mono text-[12.5px] text-plum">
+        {{ $completedCount }} / {{ $unlockTarget }}
+    </div>
+</div>
 
     <div class="grid items-start gap-6 lg:grid-cols-[1.6fr_1fr]">
 

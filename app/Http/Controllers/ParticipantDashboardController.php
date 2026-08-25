@@ -26,13 +26,11 @@ class ParticipantDashboardController extends Controller
         //show karma balance
         $karmaBalance = $karma->balanceFor($user);
 
-        /* ---- unlock progress: volunteer studies completed vs the rule ---- */
-        $unlockTarget = (int) config('platform.free_forms_to_unlock_paid');
+        /* ---- volunteer -> paid cycle progress ---- */
+        $unlock = app(\App\Services\FreeToPaidUnlockService::class)->cycleStatus($user, $profile);
 
-        $completedCount = StudyParticipation::where('participant_id', $user->id)
-            ->where('stage', PipelineStage::COMPLETED)
-            ->count();
-
+        $unlockTarget    = $unlock['volunteer_target'];
+        $completedCount  = $unlock['volunteer_progress'];
         $unlockRemaining = max(0, $unlockTarget - $completedCount);
 
         /* ---- next credential tier ---- */
@@ -89,6 +87,7 @@ class ParticipantDashboardController extends Controller
             'unlockTarget',
             'completedCount',
             'unlockRemaining',
+            "unlock",
             'next',
             'recommended',
             'applications',

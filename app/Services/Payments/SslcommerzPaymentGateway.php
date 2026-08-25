@@ -19,6 +19,7 @@ class SslcommerzPaymentGateway
     /**
      * @return array{success: bool, checkout_url: ?string, error: ?string}
      */
+    //external api implementation
     public function createCheckout(PaymentPayout $payout, string $successUrl, string $failUrl, string $cancelUrl): array
     {
         $tranId = 'PAYOUT-'.$payout->id.'-'.now()->timestamp;
@@ -75,6 +76,7 @@ class SslcommerzPaymentGateway
     /**
      * @return array{success: bool, reference: ?string, error: ?string}
      */
+    // validates the transaction with the SSLCommerz validation API
     public function validateTransaction(string $valId): array
     {
         try {

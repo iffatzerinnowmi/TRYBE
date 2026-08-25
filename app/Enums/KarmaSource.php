@@ -18,6 +18,7 @@ enum KarmaSource: string
     // ---- Spend ----
     case PRIORITY_PLACEMENT_BOOST = 'priority_placement_boost'; // researchers
     case COMPETITION_FEE_DISCOUNT = 'competition_fee_discount'; // participants/teams
+     case PAID_APPLICATION_UNLOCK  = 'paid_application_unlock';  // NEW — Feature B
 
     case MANUAL_ADJUST = 'manual_adjustment';
 
@@ -40,6 +41,8 @@ enum KarmaSource: string
             self::REFERRAL_SUCCESS         => 'Successful Referral',
             self::PRIORITY_PLACEMENT_BOOST => 'Priority Placement Boost',
             self::COMPETITION_FEE_DISCOUNT => 'Competition Fee Discount',
+            self::PAID_APPLICATION_UNLOCK  => 'Paid Application Unlock',
+
             self::MANUAL_ADJUST            => 'Adjustment',
         };
     }
@@ -53,6 +56,7 @@ enum KarmaSource: string
             self::REFERRAL_SUCCESS         => '👥',
             self::PRIORITY_PLACEMENT_BOOST => '↑',
             self::COMPETITION_FEE_DISCOUNT => '🎟️',
+            self::PAID_APPLICATION_UNLOCK  => '🔓',
             self::MANUAL_ADJUST            => '•',
         };
     }

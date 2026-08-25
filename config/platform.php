@@ -7,6 +7,10 @@ return [
     'streak_badge_weeks' => env('TRYBE_STREAK_BADGE_WEEKS', 1),
     'streak_karma_bonus_weeks' => env('TRYBE_STREAK_KARMA_WEEKS', 3),
     'endorsements_for_verified_badge' => env('TRYBE_ENDORSEMENTS_REQUIRED', 5),
+    'volunteer_cycle_target' => env('TRYBE_VOLUNTEER_CYCLE_TARGET', 5),
+    'paid_slots_per_cycle'   => env('TRYBE_PAID_SLOTS_PER_CYCLE', 2),
+    'karma_paid_unlock_cost' => env('TRYBE_KARMA_PAID_UNLOCK_COST', 50),
+
 
     /* ---------------- NEW (Member 1 — endorsements) ----------------
      | How many tags a single endorsement may carry. Was a literal 3 in

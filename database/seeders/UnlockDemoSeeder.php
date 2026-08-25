@@ -139,11 +139,26 @@ class UnlockDemoSeeder extends Seeder
             ]);
         }
         // Reset the unlock so the demo always starts from "locked", even on a
-        // second run. These are Member 3's columns; nothing else is touched.
+// second run. These are Member 3's columns; nothing else is touched.
+//
+// Cycle fields are set explicitly here rather than left to the
+// observer, because firstOrNew() on an already-COMPLETED participation
+// doesn't trigger a stage change on re-run — so the observer would
+// silently skip recording it a second time.
+        $completedVolunteerCount = StudyParticipation::whereIn('study_id', $demoStudyIds)
+            ->where('participant_id', $participant->id)
+            ->where('stage', PipelineStage::COMPLETED->value)
+            ->count();
+
+        $cycleTarget = (int) config('platform.volunteer_cycle_target');
+
         $profile->fill([
             'free_studies_completed'   => 0,
             'paid_studies_unlocked'    => false,
             'paid_studies_unlocked_at' => null,
+            'total_volunteer_count'    => $completedVolunteerCount,
+            'volunteer_progress'       => min($completedVolunteerCount, $cycleTarget),
+            'paid_used'                => 0,
         ])->save();
 
         // Clear any unlock notification from a previous run, so the bell shows

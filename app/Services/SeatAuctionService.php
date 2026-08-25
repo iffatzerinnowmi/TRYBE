@@ -24,12 +24,7 @@ use Illuminate\Support\Facades\Log;
  *                                            lazily from payload()/apply(),
  *                                            or from the scheduler via
  *                                            closeAllDue())
- *
- * Winners are pushed into the normal pipeline through the PipelineWriter
- * contract (Member 2's seam) exactly the way accepted invitations are —
- * this feature never writes study_participations.stage itself. Losers only
- * ever exist in study_seat_applications; nothing in the pipeline is created
- * for them.
+ *.
  */
 class SeatAuctionService
 {
@@ -40,7 +35,7 @@ class SeatAuctionService
     }
 
     // -----------------------------------------------------------------
-    // Eligibility
+    // Eligibility of a study for auction mode 
     // -----------------------------------------------------------------
 
     public function isEligible(Study $study): bool
@@ -59,7 +54,7 @@ class SeatAuctionService
         if ((int) $study->slots > $maxSlots) {
             return "Auction mode is only available for studies with {$maxSlots} or fewer slots.";
         }
-
+        // min 1000 is needed to pass auction eligibility
         $minCompensation = (float) config('platform.auction.min_compensation', 1000);
         if ((float) $study->compensation_amount < $minCompensation) {
             return 'Auction mode requires compensation of at least ৳'
@@ -74,10 +69,7 @@ class SeatAuctionService
     // -----------------------------------------------------------------
 
     /**
-     * Called from StudyController::store() right after the study is
-     * created (and, for cash/voucher studies, after escrow has locked).
-     * Silently does nothing if the researcher didn't ask for it or the
-     * study isn't eligible — callers don't need to duplicate the check.
+
      */
     public function enableIfRequested(Study $study, bool $requested): Study
     {
@@ -222,6 +214,7 @@ class SeatAuctionService
 
             $applications->values()->each(function (StudySeatApplication $application, int $index) use ($seats, $now, $study) {
                 $won = $index < $seats;
+                // system deciding winners and losers
 
                 $application->update([
                     'status'     => $won ? SeatApplicationStatus::WON : SeatApplicationStatus::LOST,
