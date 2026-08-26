@@ -76,9 +76,25 @@ document.addEventListener('DOMContentLoaded', function () {
             control.innerHTML = html;
 
             /* One line of explanation, in priority order: why you cannot
-               apply, then how many seats are left, then nothing. */
+               apply, then your paid-study standing, then seats, then nothing.
+
+               The paid line comes from Member 3's eligibility payload and is
+               not recomputed here — the same numbers her unlock page shows,
+               so the two can never disagree. */
+            var paid = d.paid;
+
             if (d.message) {
-                note.textContent = d.message;
+                note.textContent = d.message
+                    + (paid ? '  (' + paid.volunteer_progress + '/' + paid.volunteer_target
+                              + ' volunteer · ' + paid.karma_balance + ' Karma)' : '');
+            } else if (paid) {
+                note.textContent = paid.volunteer_progress + '/' + paid.volunteer_target
+                    + ' volunteer studies · ' + paid.karma_balance + ' Karma · '
+                    + (paid.paid_slots - paid.paid_used) + ' paid application'
+                    + ((paid.paid_slots - paid.paid_used) === 1 ? '' : 's') + ' left'
+                    + (paid.route === 'karma'
+                          ? ' — this one costs ' + paid.karma_cost + ' Karma'
+                          : '');
             } else if (d.seats_remaining !== null && d.seats_remaining !== undefined) {
                 note.textContent = d.seats_remaining + ' place'
                                  + (d.seats_remaining === 1 ? '' : 's') + ' left';

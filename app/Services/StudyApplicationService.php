@@ -50,7 +50,41 @@ class StudyApplicationService
      * the invitation flow enforces capacity with it. Two definitions of full
      * would eventually disagree, and the bug would look like a phantom seat.
      */
-    public function __construct(private StudyInvitationService $invitations) {}
+    public function __construct(
+        private StudyInvitationService $invitations,
+
+        /*
+        | Member 3's service. It owns the ENTIRE paid-study rule: the
+        | volunteer progress bar, the karma cost, the two-application cycle
+        | and the reset. This class never reimplements any of it — for a paid
+        | study it asks eligibility() and then hands the write to
+        | applyToPaidStudy(), which creates the participation, spends the
+        | karma and moves the counter inside one transaction.
+        |
+        | Injected rather than resolved inline so the dependency is visible in
+        | the constructor and can be faked in a test.
+        */
+        private FreeToPaidUnlockService $unlock,
+    ) {}
+
+    /**
+     * Has Member 3's paid-application API landed on this branch yet?
+     *
+     * The methods below live on `feature/payment-escrow`, which is not merged
+     * everywhere at the time of writing. Rather than block, this class checks
+     * for them and falls back to refusing paid studies exactly as it did
+     * before — so the same code is correct on a branch that has the merge and
+     * one that does not, and starts working the moment the merge lands with
+     * no edit here.
+     *
+     * Same seam pattern as PipelineWriter: depend on the interface, degrade
+     * gracefully when the implementation is absent.
+     */
+    private function paidApplicationsAvailable(): bool
+    {
+        return method_exists($this->unlock, 'eligibility')
+            && method_exists($this->unlock, 'applyToPaidStudy');
+    }
 
     /**
      * Reason code → HTTP status. Kept in one place so the controller does no
@@ -59,6 +93,8 @@ class StudyApplicationService
      */
     public const REASON_STATUS = [
         'paid_not_yet_available' => 422,
+        'paid_no_slots'          => 403,
+        'paid_locked'            => 403,
         'not_open'               => 422,
         'deadline_passed'        => 422,
         'full'                   => 422,
@@ -68,6 +104,9 @@ class StudyApplicationService
 
     public const REASON_MESSAGE = [
         'paid_not_yet_available' => 'Paid studies are not open for applications yet.',
+        'paid_no_slots'          => 'You have used both paid applications for this cycle. '
+                                    . 'Complete more volunteer studies to unlock two more.',
+        'paid_locked'            => 'Complete more volunteer studies, or earn more Karma, to apply.',
         'not_open'               => 'This study is not accepting applications.',
         'deadline_passed'        => 'The deadline for this study has passed.',
         'full'                   => 'This study is full.',
@@ -81,6 +120,8 @@ class StudyApplicationService
     /** Button labels come from the server so two pages cannot disagree. */
     public const REASON_LABEL = [
         'paid_not_yet_available' => 'Paid — coming soon',
+        'paid_no_slots'          => 'No paid applications left',
+        'paid_locked'            => 'Locked — volunteer or spend Karma',
         'not_open'               => 'Not accepting applications',
         'deadline_passed'        => 'Deadline passed',
         'full'                   => 'Study is full',
@@ -105,8 +146,27 @@ class StudyApplicationService
      */
     public function blockingReason(User $participant, Study $study): ?string
     {
+        /*
+        | PAID STUDIES
+        |
+        | The study-level checks below (open, deadline, seats, duplicate)
+        | apply to paid studies too, so this only decides the PAID-SPECIFIC
+        | part and then falls through to the shared checks.
+        */
         if (! $this->isVolunteer($study)) {
-            return 'paid_not_yet_available';
+            if (! $this->paidApplicationsAvailable()) {
+                return 'paid_not_yet_available';
+            }
+
+            $eligibility = $this->unlock->eligibility($participant);
+
+            // Out of slots and short of the target are different problems
+            // with different answers, so they are different messages.
+            if (! $eligibility['can_apply']) {
+                return $eligibility['paid_used'] >= $eligibility['paid_slots']
+                    ? 'paid_no_slots'
+                    : 'paid_locked';
+            }
         }
 
         if ($study->status !== StudyStatus::OPEN) {
@@ -145,6 +205,23 @@ class StudyApplicationService
         $reason    = $this->blockingReason($participant, $study);
         $existing  = $this->participationFor($participant, $study);
         $remaining = $this->seatsRemaining($study);
+        $isPaid    = ! $this->isVolunteer($study);
+
+        $paid = $isPaid && $this->paidApplicationsAvailable()
+            ? $this->unlock->eligibility($participant)
+            : null;
+
+        /*
+        | The label has to say what the button will COST. "Apply" on a study
+        | that silently spends 50 karma is a dark pattern — the price belongs
+        | in the label, not in a tooltip or a confirm dialog.
+        */
+        $label = match (true) {
+            $reason !== null              => self::REASON_LABEL[$reason],
+            $paid && $paid['route'] === 'karma'
+                => 'Spend ' . $paid['karma_cost'] . ' Karma & Apply',
+            default                       => 'Apply',
+        };
 
         return [
             'study_id'        => $study->id,
@@ -153,12 +230,34 @@ class StudyApplicationService
             'stage'           => $existing?->stage?->value,
             'reason'          => $reason,
             'message'         => $reason ? self::REASON_MESSAGE[$reason] : null,
-            'label'           => $reason ? self::REASON_LABEL[$reason] : 'Apply',
+            'label'           => $label,
             'can_withdraw'    => $this->canWithdraw($participant, $study),
 
             // Null rather than a number when the study has no cap, so the UI
             // can say nothing instead of inventing "0 seats left".
             'seats_remaining' => $study->slots > 0 ? $remaining : null,
+
+            'is_paid' => $isPaid,
+
+            /*
+            | Member 3's numbers, passed straight through — not copied,
+            | recomputed or reformatted here. The progress bar on the button
+            | and the one on her unlock page read the same source, so they
+            | cannot disagree.
+            */
+            'paid' => $paid ? [
+                'route'              => $paid['route'],
+                'karma_cost'         => $paid['karma_cost'],
+                'karma_balance'      => $paid['karma_balance'],
+                'volunteer_progress' => $paid['volunteer_progress'],
+                'volunteer_target'   => $paid['volunteer_target'],
+                'paid_used'          => $paid['paid_used'],
+                'paid_slots'         => $paid['paid_slots'],
+
+                // The visible proof that resetting the progress bar does not
+                // delete history — worth having on screen.
+                'lifetime_volunteer' => $paid['total_volunteer_count'],
+            ] : null,
         ];
     }
 
@@ -172,6 +271,17 @@ class StudyApplicationService
      * The unique(study_id, participant_id) index is the real duplicate guard.
      * blockingReason() gives a good message; the index is what makes the rule
      * true even if two requests arrive at once.
+     *
+     * PAID STUDIES ARE DELEGATED WHOLESALE.
+     * -------------------------------------
+     * Member 3's applyToPaidStudy() creates the participation, spends the
+     * karma, increments paid_used and resets the cycle — all inside ONE
+     * transaction. Doing my own half here would split an atomic operation
+     * across two services, and a failure between them would leave karma spent
+     * with no application, or an application with no karma spent.
+     *
+     * So: I own the study-level checks (open, deadline, seats, duplicate) and
+     * she owns the money. Nothing about the cycle is duplicated here.
      */
     public function apply(User $participant, Study $study): StudyParticipation
     {
@@ -179,6 +289,10 @@ class StudyApplicationService
 
         if ($reason !== null) {
             abort(self::REASON_STATUS[$reason], self::REASON_MESSAGE[$reason]);
+        }
+
+        if (! $this->isVolunteer($study)) {
+            return $this->unlock->applyToPaidStudy($participant, $study)['participation'];
         }
 
         try {
