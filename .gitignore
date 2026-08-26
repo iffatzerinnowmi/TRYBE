@@ -30,24 +30,12 @@ laravel
 colored_changes.diff
 *_routes.txt
 
-# --- docs ---
-# `docs/` used to be ignored wholesale, which meant nothing written about this
-# project ever reached the group. The opposite extreme is no better: personal
-# planning notes and viva revision are working material, not deliverables, and
-# they go stale the moment the code moves.
-#
-# So: ignore the folder, then re-admit the one document the team actually
-# needs. Note this is `docs/*` and not `docs/` — git will not look inside an
-# excluded DIRECTORY, so a negation under `docs/` would never match.
+
 docs/*
 !docs/trybe-api-reference.md
 
-# `tests/` was also ignored and is not any more. Tests are a deliverable.
 
-# postman/ stays partly ignored: the exported collections carry environment ids
-# and bearer tokens from live sessions. regenerate.py rebuilds them from
-# scratch, so nothing is lost by leaving them out.
 postman/*.json
 
-# local .env backups — never commit
+
 .env.backup*
