@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\IncentiveType;
+use App\Enums\KarmaSource;
 use App\Enums\PipelineStage;
 use App\Enums\StudyStatus;
 use App\Enums\UserRole;
@@ -10,6 +11,8 @@ use App\Models\ParticipantProfile;
 use App\Models\Study;
 use App\Models\StudyParticipation;
 use App\Models\User;
+use App\Services\FreeToPaidUnlockService;
+use App\Services\KarmaService;
 use App\Services\StudyApplicationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -67,24 +70,193 @@ class StudyApplicationTest extends TestCase
     /**
      * THE important one.
      *
-     * The button for a paid study renders disabled, but that is a courtesy.
-     * This asserts the server refuses even when a client posts directly.
+     * A participant with no volunteer progress and no karma cannot apply to a
+     * paid study, and the refusal is SERVER-SIDE — a disabled button is a
+     * courtesy, this is the guard.
+     *
+     * The reason code differs by branch, deliberately:
+     *
+     *   without Member 3's merge : 'paid_not_yet_available' (422) — no rule yet
+     *   with it                  : 'paid_locked' (403) — the rule says no
+     *
+     * Both are refusals leaving no participation row, which is the property
+     * that matters. Pinning one code would make this fail on merge for a
+     * reason that has nothing to do with the behaviour being tested.
      */
     public function test_a_paid_study_is_rejected_server_side(): void
     {
         $participant = $this->participant();
         $study       = $this->study(['incentive_type' => IncentiveType::CASH, 'compensation_amount' => 500]);
 
-        $this->assertSame(
-            'paid_not_yet_available',
-            $this->service()->blockingReason($participant, $study)
+        $reason = $this->service()->blockingReason($participant, $study);
+
+        $this->assertContains(
+            $reason,
+            ['paid_not_yet_available', 'paid_locked', 'paid_no_slots'],
+            'A participant with no progress and no karma must not reach a paid study.'
         );
+
+        $this->actingAs($participant)
+            ->postJson("/api/v1/studies/{$study->id}/apply")
+            ->assertStatus(StudyApplicationService::REASON_STATUS[$reason]);
+
+        $this->assertDatabaseCount('study_participations', 0);
+    }
+
+    // =================================================================
+    // The paid routes — Member 3's rule, my entry point
+    // =================================================================
+
+    /**
+     * Karma opens a paid study when the volunteer route has not been earned.
+     *
+     * Skipped rather than failed where Member 3's API is absent. A test that
+     * cannot run says so; a test that fails for a missing dependency is noise,
+     * and noise trains people to ignore red.
+     */
+    public function test_the_karma_route_opens_a_paid_study(): void
+    {
+        $this->skipWithoutPaidApi();
+
+        $participant = $this->participant();
+        $unlock      = app(FreeToPaidUnlockService::class);
+        $karma       = app(KarmaService::class);
+
+        $participant->participantProfile->update([
+            'volunteer_progress' => 0,
+            'paid_used'          => 0,
+        ]);
+
+        // Earn past the unlock cost through a legitimate source.
+        while ($karma->balanceFor($participant->fresh()) < $unlock->karmaUnlockCost()) {
+            $karma->earn($participant, KarmaSource::REFERRAL_SUCCESS);
+        }
+
+        $before = $karma->balanceFor($participant->fresh());
+        $study  = $this->study(['incentive_type' => IncentiveType::CASH, 'compensation_amount' => 500]);
+
+        $this->actingAs($participant)
+            ->postJson("/api/v1/studies/{$study->id}/apply")
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('study_participations', [
+            'study_id'       => $study->id,
+            'participant_id' => $participant->id,
+            'stage'          => PipelineStage::APPLIED->value,
+        ]);
+
+        // Exactly the cost — not zero, not twice.
+        $this->assertSame(
+            $before - $unlock->karmaUnlockCost(),
+            $karma->balanceFor($participant->fresh())
+        );
+    }
+
+    /**
+     * The rule Member 3's spec states twice: if the volunteer route is already
+     * earned, karma is NEVER spent.
+     */
+    public function test_a_participant_at_the_target_spends_no_karma(): void
+    {
+        $this->skipWithoutPaidApi();
+
+        $participant = $this->participant();
+        $unlock      = app(FreeToPaidUnlockService::class);
+        $karma       = app(KarmaService::class);
+
+        $participant->participantProfile->update([
+            'volunteer_progress' => $unlock->cycleTarget(),
+            'paid_used'          => 0,
+        ]);
+
+        $karma->earn($participant, KarmaSource::REFERRAL_SUCCESS);
+        $before = $karma->balanceFor($participant->fresh());
+
+        $study = $this->study(['incentive_type' => IncentiveType::CASH]);
+
+        $this->actingAs($participant)
+            ->postJson("/api/v1/studies/{$study->id}/apply")
+            ->assertStatus(201);
+
+        $this->assertSame(
+            $before,
+            $karma->balanceFor($participant->fresh()),
+            'Karma must not be spent when the volunteer route is already earned.'
+        );
+    }
+
+    /**
+     * A study-level problem is caught BEFORE any karma is spent.
+     *
+     * This is the ordering that matters in blockingReason(): if a closed study
+     * reached applyToPaidStudy(), the karma would go and the application would
+     * not happen.
+     */
+    public function test_a_closed_paid_study_costs_no_karma(): void
+    {
+        $this->skipWithoutPaidApi();
+
+        $participant = $this->participant();
+        $unlock      = app(FreeToPaidUnlockService::class);
+        $karma       = app(KarmaService::class);
+
+        $participant->participantProfile->update([
+            'volunteer_progress' => $unlock->cycleTarget(),
+            'paid_used'          => 0,
+        ]);
+
+        $karma->earn($participant, KarmaSource::REFERRAL_SUCCESS);
+        $before = $karma->balanceFor($participant->fresh());
+
+        $study = $this->study([
+            'incentive_type' => IncentiveType::CASH,
+            'status'         => StudyStatus::CLOSED,
+        ]);
 
         $this->actingAs($participant)
             ->postJson("/api/v1/studies/{$study->id}/apply")
             ->assertStatus(422);
 
+        $this->assertSame($before, $karma->balanceFor($participant->fresh()));
         $this->assertDatabaseCount('study_participations', 0);
+    }
+
+    /** The button must say what it costs before it is pressed. */
+    public function test_the_label_names_the_karma_cost(): void
+    {
+        $this->skipWithoutPaidApi();
+
+        $participant = $this->participant();
+        $unlock      = app(FreeToPaidUnlockService::class);
+        $karma       = app(KarmaService::class);
+
+        $participant->participantProfile->update(['volunteer_progress' => 0, 'paid_used' => 0]);
+
+        while ($karma->balanceFor($participant->fresh()) < $unlock->karmaUnlockCost()) {
+            $karma->earn($participant, KarmaSource::REFERRAL_SUCCESS);
+        }
+
+        $study = $this->study(['incentive_type' => IncentiveType::CASH]);
+
+        $this->actingAs($participant)
+            ->getJson("/api/v1/studies/{$study->id}/apply-status")
+            ->assertStatus(200)
+            ->assertJsonPath('data.can_apply', true)
+            ->assertJsonPath('data.is_paid', true)
+            ->assertJsonPath('data.paid.route', 'karma')
+            ->assertJsonPath(
+                'data.label',
+                'Spend ' . $unlock->karmaUnlockCost() . ' Karma & Apply'
+            );
+    }
+
+    private function skipWithoutPaidApi(): void
+    {
+        if (! method_exists(app(FreeToPaidUnlockService::class), 'eligibility')) {
+            $this->markTestSkipped(
+                'Member 3 paid-application API not on this branch — merge feature/payment-escrow.'
+            );
+        }
     }
 
     public function test_a_study_that_is_not_open_cannot_be_applied_to(): void
@@ -265,12 +437,26 @@ class StudyApplicationTest extends TestCase
         $participant = $this->participant();
         $paid        = $this->study(['incentive_type' => IncentiveType::CASH]);
 
-        $this->actingAs($participant)
+        /*
+        | An ineligible participant is refused on a paid study, and the LABEL
+        | explains why. The exact reason depends on whether Member 3's rule is
+        | merged — asserted as a set for the same reason as the test above.
+        */
+        $response = $this->actingAs($participant)
             ->getJson("/api/v1/studies/{$paid->id}/apply-status")
             ->assertStatus(200)
             ->assertJsonPath('data.can_apply', false)
-            ->assertJsonPath('data.reason', 'paid_not_yet_available')
-            ->assertJsonPath('data.label', 'Paid — coming soon');
+            ->assertJsonPath('data.is_paid', true);
+
+        $this->assertContains(
+            $response->json('data.reason'),
+            ['paid_not_yet_available', 'paid_locked', 'paid_no_slots']
+        );
+
+        $this->assertSame(
+            StudyApplicationService::REASON_LABEL[$response->json('data.reason')],
+            $response->json('data.label')
+        );
 
         $volunteer = $this->study();
 

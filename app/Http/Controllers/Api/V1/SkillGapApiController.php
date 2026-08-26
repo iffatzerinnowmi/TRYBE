@@ -91,6 +91,23 @@ class SkillGapApiController extends Controller
     {
         $user = $this->participantOrFail($request);
 
+        /*
+        | Was there already current advice BEFORE we asked?
+        |
+        | generate() refuses to spend an API call when the inputs hash has not
+        | moved — correct, and the whole cost control. But the response used to
+        | look identical to a successful regeneration, so the button appeared
+        | to do nothing and the only way to tell was to read the timestamp.
+        |
+        | Captured here rather than inferred afterwards, because after
+        | generate() returns, a skipped call and a successful one are
+        | indistinguishable.
+        */
+        $before = $this->skillGap->refreshAnalysis($user);
+
+        $wasAlreadyCurrent = $before->advice !== null
+            && $before->isCurrent($this->skillGap->inputsHash($before->analysis));
+
         $record = $this->skillGap->generate($user);
 
         $ok = $record->advice !== null && $record->last_error === null;
@@ -99,6 +116,12 @@ class SkillGapApiController extends Controller
             'message' => match (true) {
                 $this->skillGap->hasNothingToSay($record->analysis)
                     => 'Nothing to advise on yet — no studies are close enough to analyse.',
+
+                // Say so, rather than leaving a button that looks broken.
+                $wasAlreadyCurrent
+                    => 'Your profile has not changed since this advice was written, '
+                       . 'so it still stands. Add a skill or complete a study to get new advice.',
+
                 $ok => 'Advice updated.',
                 // Surface the provider's actual reason rather than a generic
                 // "could not reach" — an SSL misconfiguration, a rejected key
