@@ -164,12 +164,52 @@ class NotificationService
                 ],
             ],
         ],
+        /*
+        | MERGE NOTE. The three types below arrived from Member 3's branch,
+        | which was cut before the role-aware rewrite. They carried only
+        | column/icon/label/desc, so typesFor() hit "Undefined array key
+        | roles" and every notification path 500'd — including invitations,
+        | which do not involve payments at all.
+        |
+        | `roles` and `always` added here to match the shape the rest of the
+        | array uses. If you add a type, it needs both.
+        */
         'unlock' => [
-            'column' => 'notify_unlock',
-            'icon'   => '🔓',
-            'label'  => 'Paid study access unlocked',
-            'desc'   => 'When you complete enough free studies to apply to paid ones.',
+            'column'    => 'notify_unlock',
+            'icon'      => '🔓',
+            'label'     => 'Paid study access unlocked',
+            'desc'      => 'When you complete enough free studies to apply to paid ones.',
+            'roles'     => ['participant'],
+            'always'    => false,
         ],
+        'payments' => [
+            'column'    => 'notify_payments',
+            'icon'      => '💰',
+            'label'     => 'Payment and payouts',
+            'desc'      => 'Escrow locked, payouts ready to confirm, released, failed, or refunded.',
+
+            // Both sides of a payment care: the participant waiting to be
+            // paid and the researcher whose escrow moved.
+            'roles'     => ['participant', 'researcher', 'organization'],
+
+            // Money moving is not a preference. A participant who switched
+            // this off would silently stop hearing that they had been paid.
+            'always'    => true,
+        ],
+        'auction' => [
+            'column'    => 'notify_auction',
+            'icon'      => '🎯',
+            'label'     => 'Limited seat auction results',
+            'desc'      => 'When a seat auction you applied to closes and seats are decided.',
+            'roles'     => ['participant', 'researcher', 'organization'],
+
+            // You applied for a seat; being told whether you got one is the
+            // outcome of your own action, not marketing.
+            'always'    => true,
+        ],
+
+        
+
     ];
 
     // -----------------------------------------------------------------
@@ -196,6 +236,27 @@ class NotificationService
         $types = [];
 
         foreach (self::TYPES as $key => $type) {
+            /*
+            | Defensive on purpose.
+            |
+            | A type added without a `roles` key used to throw "Undefined
+            | array key" from here — and because wants() is on the path of
+            | every notification, one malformed entry 500'd unrelated
+            | features. That is exactly what happened when three types came
+            | across from a branch cut before this array grew a `roles` key.
+            |
+            | A missing key is now a logged warning and a visible-to-nobody
+            | type, not a fatal. Loud in the log, harmless to the request.
+            */
+            if (! isset($type['roles']) || ! is_array($type['roles'])) {
+                Log::warning(
+                    'NotificationService: type "' . $key . '" has no roles[] and was skipped. '
+                    . 'Every entry in TYPES needs roles and always.'
+                );
+
+                continue;
+            }
+
             if (! in_array($role, $type['roles'], true)) {
                 continue;
             }

@@ -50,7 +50,10 @@
             // Member 4 — competition board (post listings) and referrals.
             'Competitions' => '/competitions',
             'Refer'        => '/researcher/referrals',
+                        //member3- verified payment escrow
+            'Payments'     => '/researcher/payments',
             'Alerts'       => '/notifications',
+
         ],
         'admin' => [
             'Overview'     => '/dashboard',

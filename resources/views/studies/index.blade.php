@@ -73,6 +73,9 @@
                     @if ($study->irb_flagged)
                         <x-badge tone="flame">IRB pending</x-badge>
                     @endif
+                     @if ($study->auction_mode)
+                        <x-badge tone="plum">🎯 Seat auction</x-badge>
+                    @endif
                     @if (! is_null($study->match_score ?? null))
                         <x-badge tone="{{ $study->strong_match ? 'expert' : 'gold' }}">Match {{ $study->match_score }}%</x-badge>
                     @endif

@@ -13,6 +13,12 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'sslcommerz' => [
+        'store_id' => env('SSLCOMMERZ_STORE_ID'),
+        'store_password' => env('SSLCOMMERZ_STORE_PASSWORD'),
+        'session_url' => env('SSLCOMMERZ_SESSION_URL', 'https://sandbox.sslcommerz.com/gwprocess/v4/api.php'),
+        'validation_url' => env('SSLCOMMERZ_VALIDATION_URL', 'https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php'),
+    ],
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),

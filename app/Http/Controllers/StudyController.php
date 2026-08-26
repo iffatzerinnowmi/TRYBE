@@ -8,6 +8,8 @@ use App\Enums\StudyStatus;
 use App\Http\Requests\StoreStudyRequest;
 use App\Models\Study;
 use App\Models\StudyParticipation;
+use App\Services\PaymentEscrowService;
+
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,7 +22,12 @@ use Illuminate\Support\Facades\DB;
  *   Volunteer/Unpaid  -> nothing further to collect.
  */
 class StudyController extends Controller
-{
+{   
+    public function __construct(private PaymentEscrowService $escrow,private \App\Services\SeatAuctionService $auctions,
+)
+    {
+    }
+
     public function index()
     {
         $user = auth()->user();
@@ -72,6 +79,10 @@ class StudyController extends Controller
     {
         return view('studies.create', [
             'incentiveTypes' => IncentiveType::cases(),
+            'auctionMaxSlots'         => (int) config('platform.auction.max_slots', 3),
+            'auctionMinCompensation'  => (float) config('platform.auction.min_compensation', 1000),
+            'auctionDurationHours'    => (int) config('platform.auction.duration_hours', 48),
+            'auctionFillMultiplier'   => (int) config('platform.auction.fill_multiplier', 3),
         ]);
     }
 
@@ -122,6 +133,17 @@ class StudyController extends Controller
 
             return $study;
         });
+                // Limited Seat Auctions (Member 3) — only takes effect if the study
+        // ended up OPEN and passes SeatAuctionService::isEligible().
+        $study = $this->auctions->enableIfRequested($study, $request->boolean('auction_mode'));
+        return redirect()->route('dashboard')->with(
+            'status',
+            $study->status === StudyStatus::OPEN
+                 ? ($study->auction_mode
+                    ? "Study posted — seat auction is live, closing in {$this->auctions->payload($study)['closes_at']} or once enough applications come in."
+                    : "Study posted — it's live for participants now.")
+                : "Study saved as a draft — the escrow lock didn't go through, try again."
+        );
 
         // Forward any provided eligibility criteria to the matching API so
         // the study's matching criteria are created without requiring the
@@ -157,7 +179,7 @@ class StudyController extends Controller
     public function show(Study $study)
     {
         $user = auth()->user();
-        $study->load('researcher');
+        $study->load('researcher','escrow', 'payouts');
 
         abort_if($user->role?->value === 'researcher' && $study->researcher_id !== $user->id, 403);
 
@@ -197,6 +219,6 @@ class StudyController extends Controller
      */
     private function lockEscrow(Study $study): bool
     {
-        return true;
+        return $this->escrow->lockFunds($study);
     }
 }

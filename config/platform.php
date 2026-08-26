@@ -7,6 +7,10 @@ return [
     'streak_badge_weeks' => env('TRYBE_STREAK_BADGE_WEEKS', 1),
     'streak_karma_bonus_weeks' => env('TRYBE_STREAK_KARMA_WEEKS', 3),
     'endorsements_for_verified_badge' => env('TRYBE_ENDORSEMENTS_REQUIRED', 5),
+    'volunteer_cycle_target' => env('TRYBE_VOLUNTEER_CYCLE_TARGET', 5),
+    'paid_slots_per_cycle'   => env('TRYBE_PAID_SLOTS_PER_CYCLE', 2),
+    'karma_paid_unlock_cost' => env('TRYBE_KARMA_PAID_UNLOCK_COST', 50),
+
 
     /* ---------------- NEW (Member 1 — endorsements) ----------------
      | How many tags a single endorsement may carry. Was a literal 3 in
@@ -138,7 +142,7 @@ return [
      | — so changing a number here changes what participants are paid and
      | what the page tells them they'll be paid, together, in one place.
      */
-    'karma' => [
+        'karma' => [
         'study_completed'  => env('TRYBE_KARMA_STUDY_COMPLETED', 10),
         'session_on_time'  => env('TRYBE_KARMA_SESSION_ON_TIME', 5),
         'review_left'      => env('TRYBE_KARMA_REVIEW_LEFT', 2),
@@ -285,4 +289,40 @@ return [
         // write and an unthrottled one is a way to fill a table with a loop.
         'save_rate' => env('TRYBE_COMP_SAVE_RATE', 30),
     ],
+
+        /* ---------------- Section — Verified Payment Escrow (Member 3) ---------------- */
+    'escrow' => [
+        'cancellation_fee_percent' => env('TRYBE_ESCROW_CANCELLATION_FEE_PERCENT', 10),
+        'payout_max_attempts' => env('TRYBE_ESCROW_PAYOUT_MAX_ATTEMPTS', 3),
+        'payout_confirmation_hours' => env('TRYBE_ESCROW_PAYOUT_CONFIRMATION_HOURS', 72),
+        'payout_retry_backoff_minutes' => env('TRYBE_ESCROW_PAYOUT_RETRY_BACKOFF_MINUTES', 30),
+    ],
+        /* ---------------- Section — Limited Seat Auctions (Member 3) ----------------
+     | SeatAuctionService::isEligible() reads the first two to decide whether a
+     | researcher is even OFFERED the auction-mode toggle:
+     |
+     |   max_slots         study.slots must be <= this to qualify ("3 or fewer
+     |                     available slots").
+     |   min_compensation  study.compensation_amount must be >= this ("above a
+     |                     platform-defined threshold"). Only cash/voucher
+     |                     studies have a compensation_amount, so this also
+     |                     rules out volunteer/course-credit studies.
+     |
+     | Once a study IS in auction mode, these two decide when it closes —
+     | whichever happens first:
+     |
+     |   duration_hours    auction_closes_at = auction_opened_at + this many
+     |                     hours ("closes 48 hours after the listing goes live").
+     |   fill_multiplier   auction closes the moment
+     |                     applications >= slots * fill_multiplier
+     |                     ("or when enough applicants have applied to fill 3x
+     |                     the available slots").
+     */
+    'auction' => [
+        'max_slots'        => env('TRYBE_AUCTION_MAX_SLOTS', 3),
+        'min_compensation' => env('TRYBE_AUCTION_MIN_COMPENSATION', 1000),
+        'duration_hours'   => env('TRYBE_AUCTION_DURATION_HOURS', 48),
+        'fill_multiplier'  => env('TRYBE_AUCTION_FILL_MULTIPLIER', 3),
+    ],
+
 ];

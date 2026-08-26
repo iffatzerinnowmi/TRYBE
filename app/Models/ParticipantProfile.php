@@ -11,6 +11,7 @@ class ParticipantProfile extends Model {
         'current_streak_weeks','longest_streak_weeks','last_active_week',
         'endorsement_count','is_verified_participant',
         'free_studies_completed','paid_studies_unlocked','paid_studies_unlocked_at',
+        'total_volunteer_count','volunteer_progress','paid_used', // NEW
     ];
     protected $casts = [
         'last_active_week' => 'date',
@@ -19,6 +20,10 @@ class ParticipantProfile extends Model {
         'paid_studies_unlocked' => 'boolean',
         'paid_studies_unlocked_at' => 'datetime',
         'free_studies_completed','paid_studies_unlocked','paid_studies_unlocked_at',
+        'total_volunteer_count' => 'integer', // NEW
+        'volunteer_progress' => 'integer',    // NEW
+        'paid_used' => 'integer',             // NEW
+
     ];
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
 }

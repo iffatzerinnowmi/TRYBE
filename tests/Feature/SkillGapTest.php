@@ -52,7 +52,27 @@ class SkillGapTest extends TestCase
             'services.ai.base_url' => 'https://ai.test/v1',
         ]);
 
-        Http::fake();
+        /*
+        | DO NOT call a bare Http::fake() here.
+        |
+        | Http::fake() with no arguments registers a catch-all stub that
+        | returns an EMPTY 200. Later calls to Http::fake([...]) inside a test
+        | are MERGED after it, and the first matching stub wins — so the
+        | catch-all shadowed every per-test response. AiClient then parsed an
+        | empty body, found no `choices.0.message.content`, and recorded
+        | "Provider returned an empty message".
+        |
+        | That failed silently in the most misleading way possible: the tests
+        | looked like they were exercising the parser, and were really
+        | exercising an empty response every time.
+        |
+        | fake([]) enables faking without registering any stub, so each test's
+        | own response is the first match. preventStrayRequests() then turns a
+        | forgotten stub into a loud exception instead of a real network call
+        | from the test suite.
+        */
+        Http::fake([]);
+        Http::preventStrayRequests();
     }
 
     /**
@@ -417,10 +437,34 @@ class SkillGapTest extends TestCase
 
         $service = app(SkillGapService::class);
 
-        $service->generate($participant);
+        $first = $service->generate($participant);
+
+        /*
+        | Assert the PRECONDITION before the thing under test.
+        |
+        | The hash gate only engages once advice has actually been stored. If
+        | the first call failed — a rejected response, an empty gap, a parse
+        | error — the second call legitimately fires again, and the only
+        | symptom is "expected 1, got 2", which says nothing about the cause.
+        | Checking here turns that into the real reason.
+        */
+        $this->assertNotNull(
+            $first->advice,
+            'First generate() stored no advice, so the hash gate never armed. '
+            . 'last_error: ' . var_export($first->last_error, true)
+            . ' · missing_skills: ' . json_encode($first->analysis['missing_skills'] ?? null)
+            . ' · near_miss_count: ' . var_export($first->analysis['near_miss_count'] ?? null, true)
+        );
+
         Http::assertSentCount(1);
 
-        $service->generate($participant->fresh());
+        $second = $service->generate($participant->fresh());
+
+        $this->assertTrue(
+            $second->isCurrent($service->inputsHash($second->analysis)),
+            'The analysis hash moved between two identical runs — analyse() is not deterministic.'
+        );
+
         Http::assertSentCount(1);   // still 1 — the hash has not moved
     }
 

@@ -61,6 +61,10 @@
                         <div class="mt-2 text-[13.5px] font-semibold leading-6 text-ink">{{ $study->deadline?->format('M d, Y') ?? 'No deadline' }}</div>
                     </div>
                 </div>
+                                {{-- FEATURE — Verified Payment Escrow (Member 3) --}}
+                @include('studies.partials.escrow-summary', ['study' => $study])
+
+                {{-- Matching criteria (Member 4)... --}}
 
                 {{-- Matching criteria (Member 4). API-driven: filled by
                      resources/js/study-match.js from the matching endpoints. --}}
@@ -73,6 +77,10 @@
         </x-panel>
 
         <div class="min-w-0 space-y-6">
+            {{-- FEATURE — Limited Seat Auctions (Member 3) --}}
+            @include('studies.partials.auction-panel', ['study' => $study, 'user' => $user])
+            @include('studies.partials.paid-apply-panel', ['study' => $study, 'user' => $user])
+
             @if ($user->role?->value === 'participant')
                 <x-panel label="Available sessions" class="reveal reveal-d1" data-slot-panel data-slot-type="participant" data-study-id="{{ $study->id }}">
                     <div class="space-y-3" data-slot-list>

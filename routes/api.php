@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\KarmaApiController;
 use App\Http\Controllers\Api\V1\MatchedStudyApiController;
 use App\Http\Controllers\Api\V1\NotificationApiController;
 use App\Http\Controllers\Api\V1\PlatformApiController;
+use App\Http\Controllers\Api\V1\PaidApplicationApiController;
 use App\Http\Controllers\Api\V1\ReferralApiController;
 use App\Http\Controllers\Api\V1\ReRecruitApiController;
 use App\Http\Controllers\Api\V1\ReliabilityApiController;
@@ -265,6 +266,54 @@ Route::prefix('v1')->group(function () {
             'participants/{user}/unlock-status/recalculate',
             [UnlockApiController::class, 'recalculate']
         );
+                /* ---- Verified Payment Escrow ---- */
+        Route::get('payouts/me', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'mine']);
+        Route::patch(
+            'researchers/me/payout-settings',
+            [\App\Http\Controllers\Api\V1\EscrowApiController::class, 'updatePayoutSettings']
+        );
+
+        Route::get(
+            'studies/{study}/escrow',
+            [\App\Http\Controllers\Api\V1\EscrowApiController::class, 'show']
+        );
+        Route::post(
+            'studies/{study}/escrow/refund',
+            [\App\Http\Controllers\Api\V1\EscrowApiController::class, 'refund']
+        );
+        Route::get(
+            'studies/{study}/payouts',
+            [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'forStudy']
+        );
+
+        Route::get('payouts/{payout}', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'show']);
+        Route::post('payouts/{payout}/confirm', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'confirm']);
+        Route::post('payouts/{payout}/retry', [\App\Http\Controllers\Api\V1\PayoutApiController::class, 'retry']);
+                /* ---- Limited Seat Auctions ---- */
+        Route::get(
+            'studies/{study}/auction',
+            [\App\Http\Controllers\Api\V1\SeatAuctionApiController::class, 'show']
+        );
+        Route::post(
+            'studies/{study}/auction/apply',
+            [\App\Http\Controllers\Api\V1\SeatAuctionApiController::class, 'apply']
+        );
+        Route::post(
+            'studies/{study}/auction/close',
+            [\App\Http\Controllers\Api\V1\SeatAuctionApiController::class, 'close']
+        );
+        /* ---- Paid applications (Feature B — Karma alternate unlock) ----
+   GET returns the eligibility snapshot the Apply button is built from.
+   POST spends a free or Karma-bought slot and creates the application,
+   atomically, inside FreeToPaidUnlockService::applyToPaidStudy(). */
+Route::get(
+    'studies/{study}/paid-application',
+    [PaidApplicationApiController::class, 'eligibility']
+);
+Route::post(
+    'studies/{study}/paid-application',
+    [PaidApplicationApiController::class, 'apply']
+);
 
 
 
