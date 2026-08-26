@@ -29,13 +29,9 @@ Thumbs.db
 laravel
 colored_changes.diff
 *_routes.txt
-
-
+*.md
+!README.md
 docs/*
 !docs/trybe-api-reference.md
-
-
 postman/*.json
-
-
 .env.backup*
